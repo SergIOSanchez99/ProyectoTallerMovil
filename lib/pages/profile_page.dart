@@ -4,10 +4,47 @@ import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/custom_text_field.dart';
 import '../utils/extensions.dart';
+import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
+import '../model/user.dart';
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  User? _currentUser;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final authService = AuthService();
+      final response = await authService.getCurrentUser();
+      
+      setState(() {
+        if (response.success && response.data != null) {
+          _currentUser = response.data;
+        }
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      print('Error cargando datos del usuario: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +57,7 @@ class ProfilePage extends StatelessWidget {
         elevation: 0,
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimensions.spacingL),
           child: Column(
             children: [
@@ -38,22 +75,48 @@ class ProfilePage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: AppDimensions.spacingL),
-                    const Text(
-                      'Usuario Demo',
-                      style: TextStyle(
-                        fontSize: AppDimensions.fontSizeXXL,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                    if (_isLoading)
+                      const CircularProgressIndicator()
+                    else if (_currentUser != null) ...[
+                      Text(
+                        _currentUser!.name,
+                        style: const TextStyle(
+                          fontSize: AppDimensions.fontSizeXXL,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: AppDimensions.spacingS),
-                    const Text(
-                      'usuario@demo.com',
-                      style: TextStyle(
-                        fontSize: AppDimensions.fontSizeL,
-                        color: AppColors.textSecondary,
+                      const SizedBox(height: AppDimensions.spacingS),
+                      Text(
+                        _currentUser!.email,
+                        style: const TextStyle(
+                          fontSize: AppDimensions.fontSizeL,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: AppDimensions.spacingL),
+                      CustomButton(
+                        text: 'Editar Perfil',
+                        onPressed: _showEditProfileDialog,
+                        backgroundColor: AppColors.primaryBlue,
+                        icon: Icons.edit,
+                      ),
+                    ] else ...[
+                      const Text(
+                        'Error al cargar datos',
+                        style: TextStyle(
+                          fontSize: AppDimensions.fontSizeL,
+                          color: AppColors.error,
+                        ),
+                      ),
+                      const SizedBox(height: AppDimensions.spacingS),
+                      CustomButton(
+                        text: 'Reintentar',
+                        onPressed: _loadUserData,
+                        backgroundColor: AppColors.primaryBlue,
+                        icon: Icons.refresh,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -96,7 +159,7 @@ class ProfilePage extends StatelessWidget {
                   ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: AppDimensions.spacingXL),
               // Botón de cerrar sesión
               CustomButton(
                 text: 'Cerrar Sesión',
@@ -104,6 +167,7 @@ class ProfilePage extends StatelessWidget {
                 backgroundColor: AppColors.error,
                 icon: Icons.logout,
               ),
+              const SizedBox(height: AppDimensions.spacingL),
             ],
           ),
         ),
@@ -130,6 +194,102 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  void _showEditProfileDialog() {
+    if (_currentUser == null) return;
+    
+    final nameController = TextEditingController(text: _currentUser!.name);
+    final emailController = TextEditingController(text: _currentUser!.email);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Editar Perfil'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CustomTextField(
+                controller: nameController,
+                label: 'Nombre',
+                prefixIcon: const Icon(Icons.person, color: AppColors.primaryBlue),
+                enabled: false, // Por ahora solo permitimos editar email
+              ),
+              const SizedBox(height: 16),
+              CustomTextField(
+                controller: emailController,
+                label: 'Correo electrónico',
+                prefixIcon: const Icon(Icons.email, color: AppColors.primaryBlue),
+                keyboardType: TextInputType.emailAddress,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _updateProfile(emailController.text);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateProfile(String newEmail) async {
+    if (newEmail.isEmpty || newEmail == _currentUser!.email) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No hay cambios para guardar'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    // Validar formato de email
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(newEmail)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Formato de email inválido'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Aquí normalmente harías una llamada al backend para actualizar el perfil
+      // Por ahora simulamos la actualización
+      setState(() {
+        _currentUser = User(
+          id: _currentUser!.id,
+          email: newEmail,
+          name: _currentUser!.name,
+        );
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Perfil actualizado exitosamente'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar perfil: $e'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
+  }
+
   void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
@@ -145,7 +305,11 @@ class ProfilePage extends StatelessWidget {
             onPressed: () {
               Navigator.of(context).pop();
               // Navegar a login
-              context.pushReplacementNamed('/login');
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.login,
+                (route) => false,
+              );
             },
             child: const Text('Cerrar Sesión'),
           ),

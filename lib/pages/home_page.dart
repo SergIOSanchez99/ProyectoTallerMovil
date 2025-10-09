@@ -5,6 +5,7 @@ import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,10 +21,38 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.veryLightBlue,
+      appBar: AppBar(
+        title: const Text('Inicio'),
+        backgroundColor: AppColors.primaryBlue,
+        foregroundColor: AppColors.white,
+        elevation: 0,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              if (value == 'logout') {
+                await _handleLogout();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: AppDimensions.spacingXXL),
+            const SizedBox(height: AppDimensions.spacingL),
             // Área de contenido principal
             Expanded(
               child: Padding(
@@ -151,6 +180,53 @@ class _HomePageState extends State<HomePage> {
       case 3:
         Navigator.pushNamed(context, AppRoutes.profile);
         break;
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar sesión'),
+          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Cerrar sesión'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmLogout == true) {
+      // Cerrar sesión
+      final authService = AuthService();
+      final response = await authService.logout();
+      
+      // Navegar a la página de login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+        (route) => false,
+      );
+      
+      // Mostrar mensaje de confirmación
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.message ?? 'Sesión cerrada exitosamente'),
+          backgroundColor: response.success ? AppColors.success : Colors.red,
+        ),
+      );
     }
   }
 }

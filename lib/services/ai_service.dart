@@ -7,7 +7,7 @@ import '../model/api_response.dart';
 
 class AIService {
   // URL del backend (ajusta según tu configuración)
-  static const String baseUrl = 'http://localhost:5000';
+  static const String baseUrl = 'http://127.0.0.1:5000';
   
   /// Convierte una imagen a base64 para enviar al backend
   Future<String?> _imageToBase64(XFile image) async {
@@ -116,14 +116,57 @@ class AIService {
       // Simular delay de procesamiento
       await Future.delayed(const Duration(seconds: 3));
       
-      // Datos simulados
+      // Generar resultados variados y realistas
+      final results = [
+        {
+          'result': 'Cáncer de Colon Detectado',
+          'confidence': 0.87,
+          'stage': 'Requiere atención médica inmediata',
+          'risk_level': 'Alto',
+          'recommendation': 'Consulte con un especialista para confirmación'
+        },
+        {
+          'result': 'Tejido Benigno',
+          'confidence': 0.23,
+          'stage': 'Sin signos de cáncer',
+          'risk_level': 'Bajo',
+          'recommendation': 'Mantenga revisiones regulares'
+        },
+        {
+          'result': 'Posible Cáncer de Colon',
+          'confidence': 0.65,
+          'stage': 'Requiere evaluación médica urgente',
+          'risk_level': 'Medio-Alto',
+          'recommendation': 'Programe una consulta médica lo antes posible'
+        },
+        {
+          'result': 'Anomalía Detectada',
+          'confidence': 0.42,
+          'stage': 'Revisión médica recomendada',
+          'risk_level': 'Medio',
+          'recommendation': 'Consulte con su médico para seguimiento'
+        },
+        {
+          'result': 'Tejido Normal',
+          'confidence': 0.15,
+          'stage': 'Sin signos de cáncer',
+          'risk_level': 'Bajo',
+          'recommendation': 'Continúe con revisiones periódicas'
+        }
+      ];
+      
+      // Seleccionar resultado aleatorio
+      final randomIndex = DateTime.now().millisecondsSinceEpoch % results.length;
+      final selectedResult = results[randomIndex];
+      
+      // Datos simulados con resultado variado
       final mockData = {
         'analysis_id': 'sim_${DateTime.now().millisecondsSinceEpoch}',
-        'result': 'Cáncer de Colon Detectado',
-        'confidence': 0.87,
-        'stage': 'Requiere atención médica inmediata',
-        'risk_level': 'Alto',
-        'recommendation': 'Consulte con un especialista para confirmación'
+        'result': selectedResult['result'],
+        'confidence': selectedResult['confidence'],
+        'stage': selectedResult['stage'],
+        'risk_level': selectedResult['risk_level'],
+        'recommendation': selectedResult['recommendation']
       };
       
       return ApiResponse.success(mockData, message: 'Análisis simulado completado');

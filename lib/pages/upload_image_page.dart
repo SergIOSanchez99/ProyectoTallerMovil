@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
 import '../services/ai_service.dart';
+import '../services/report_service.dart';
 import '../routes/app_routes.dart';
 
 /// Represents the data for a colonoscopy analysis.
@@ -38,18 +39,45 @@ Future<bool> handleGenerateReport() async {
 
 /// Manages the state for Colonoscopy Analysis data and report generation.
 class ColonoscopyAnalysisData extends ChangeNotifier {
-  ColonoscopyAnalysis _analysis;
+  ColonoscopyAnalysis? _analysis;
   bool _isGeneratingReport = false;
+  bool _hasAnalysis = false;
 
-  ColonoscopyAnalysisData()
-      : _analysis = ColonoscopyAnalysis(
-          analysisDate: DateTime(2023, 10, 26),
-          result: 'Linfoma',
-          currentStage: 'Temprana',
-        );
-
-  ColonoscopyAnalysis get analysis => _analysis;
+  ColonoscopyAnalysis? get analysis => _analysis;
   bool get isGeneratingReport => _isGeneratingReport;
+  bool get hasAnalysis => _hasAnalysis;
+
+  /// Actualizar análisis con datos reales del backend
+  void updateAnalysisFromBackend({
+    required String result,
+    required String stage,
+    required double confidence,
+    required String riskLevel,
+  }) {
+    print('🔄 Actualizando análisis en el provider...');
+    print('📋 Resultado: $result');
+    print('📋 Etapa: $stage');
+    print('📋 Confianza: $confidence');
+    print('📋 Nivel de riesgo: $riskLevel');
+    
+    _analysis = ColonoscopyAnalysis(
+      analysisDate: DateTime.now(),
+      result: result,
+      currentStage: stage,
+    );
+    _hasAnalysis = true;
+    
+    print('✅ Provider actualizado, notificando listeners...');
+    notifyListeners();
+    print('✅ Listeners notificados');
+  }
+
+  /// Limpiar análisis anterior
+  void clearAnalysis() {
+    _analysis = null;
+    _hasAnalysis = false;
+    notifyListeners();
+  }
 
   /// Initiates the report generation process.
   /// Updates the isGeneratingReport state and notifies listeners.
@@ -59,9 +87,38 @@ class ColonoscopyAnalysisData extends ChangeNotifier {
 
     final bool success = await handleGenerateReport();
 
+    // Si el reporte se generó exitosamente y hay análisis disponible
+    if (success && _hasAnalysis && _analysis != null) {
+      // Guardar el reporte en el historial
+      await ReportService.addReport(
+        result: _analysis!.result,
+        stage: _analysis!.currentStage,
+        confidence: 0.85, // Podrías agregar confidence al modelo si lo necesitas
+        riskLevel: _getRiskLevel(_analysis!.result),
+      );
+    }
+
     _isGeneratingReport = false;
     notifyListeners();
     return success;
+  }
+
+  /// Determinar nivel de riesgo basado en el resultado
+  String _getRiskLevel(String result) {
+    switch (result.toLowerCase()) {
+      case 'normal':
+      case 'sin anomalías':
+        return 'Bajo';
+      case 'anomalía menor':
+      case 'pólipo':
+        return 'Medio';
+      case 'cáncer':
+      case 'tumor':
+      case 'linfoma':
+        return 'Alto';
+      default:
+        return 'Medio';
+    }
   }
 }
 
@@ -81,9 +138,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider<ColonoscopyAnalysisData>(
-      create: (context) => ColonoscopyAnalysisData(),
-      child: Scaffold(
+    return Scaffold(
         backgroundColor: const Color(0xFFF0F8FF), // Fondo azul muy claro
       appBar: AppBar(
         title: const Text('Subir Imagen'),
@@ -133,7 +188,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _handleUploadImage,
+                    onPressed: _isAnalyzing ? null : _handleUploadImage,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1E6091), // Azul oscuro
                       foregroundColor: Colors.white,
@@ -142,20 +197,40 @@ class _UploadImagePageState extends State<UploadImagePage> {
                       ),
                       elevation: 2,
                     ),
-                    child: const Text(
-                      'Subir imagen',
-                        style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: _isAnalyzing
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                'Analizando...',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            'Subir imagen',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                // Mostrar sección de resultados solo si hay una imagen seleccionada
-                if (_selectedImageBytes != null) ...[
-                  const ReportAnalysisSection(),
-                ],
+                // Mostrar sección de resultados siempre
+                const ReportAnalysisSection(),
               ],
             ),
           ),
@@ -197,8 +272,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   void _onItemTapped(int index) {
@@ -316,7 +390,11 @@ class _UploadImagePageState extends State<UploadImagePage> {
       // Leer bytes de la imagen
       final Uint8List imageBytes = await image.readAsBytes();
       
-    setState(() {
+      // Limpiar análisis anterior
+      final provider = Provider.of<ColonoscopyAnalysisData>(context, listen: false);
+      provider.clearAnalysis();
+      
+      setState(() {
         _selectedImageBytes = imageBytes;
         _selectedImageUrl = image.path; // Para mostrar en la UI
       });
@@ -395,18 +473,23 @@ class _UploadImagePageState extends State<UploadImagePage> {
   }
 
   void _updateAnalysisResults(Map<String, dynamic> data) {
+    print('🔍 Actualizando resultados del análisis...');
+    print('📊 Datos recibidos: $data');
+    
     // Actualizar los resultados en el provider
     final provider = Provider.of<ColonoscopyAnalysisData>(context, listen: false);
     
-    // Crear nuevo análisis con datos reales
-    final newAnalysis = ColonoscopyAnalysis(
-      analysisDate: DateTime.now(),
+    // Actualizar análisis con datos reales del backend
+    provider.updateAnalysisFromBackend(
       result: data['result'] ?? 'Análisis completado',
-      currentStage: data['stage'] ?? 'Etapa evaluada',
+      stage: data['stage'] ?? 'Etapa evaluada',
+      confidence: (data['confidence'] ?? 0.0).toDouble(),
+      riskLevel: data['risk_level'] ?? 'Desconocido',
     );
     
-    // Actualizar el provider (esto requeriría modificar la clase)
-    // Por ahora, mostramos un mensaje de éxito
+    print('✅ Análisis actualizado en el provider');
+    
+    // Mostrar mensaje de éxito
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Análisis completado: ${data['result']}'),
@@ -416,21 +499,11 @@ class _UploadImagePageState extends State<UploadImagePage> {
   }
 
   void _handleReportHistory() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navegar a Historial de reportes'),
-        backgroundColor: Color(0xFF191970),
-      ),
-    );
+    Navigator.pushNamed(context, AppRoutes.reportHistory);
   }
 
   void _handleProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navegar a Perfil de usuario'),
-        backgroundColor: Color(0xFF191970),
-      ),
-    );
+    Navigator.pushNamed(context, AppRoutes.profile);
   }
 }
 
@@ -529,7 +602,43 @@ class ReportAnalysisSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<ColonoscopyAnalysisData>(
       builder: (BuildContext context, ColonoscopyAnalysisData analysisData, Widget? child) {
-        final ColonoscopyAnalysis analysis = analysisData.analysis;
+        // Si no hay análisis disponible, mostrar mensaje de instrucción
+        if (!analysisData.hasAnalysis || analysisData.analysis == null) {
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 10),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                children: [
+                  const Text(
+                    'Análisis de la colonoscopia',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    'Selecciona una imagen para ver el análisis automático de cáncer de colon',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Mostrar análisis real con datos del backend
+        final ColonoscopyAnalysis analysis = analysisData.analysis!;
         final bool isGenerating = analysisData.isGeneratingReport;
 
         return Card(
@@ -578,12 +687,20 @@ class ReportAnalysisSection extends StatelessWidget {
                         ? null // Disable button while generating
                         : () async {
                             final bool success = await analysisData.generateReport();
+                            
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
                                   success ? 'Reporte generado exitosamente.' : 'Error al generar el reporte.',
                                 ),
                                 backgroundColor: success ? const Color(0xFF1E6091) : Colors.red,
+                                action: success ? SnackBarAction(
+                                  label: 'Ver Historial',
+                                  textColor: Colors.white,
+                                  onPressed: () {
+                                    Navigator.pushNamed(context, AppRoutes.reportHistory);
+                                  },
+                                ) : null,
                               ),
                             );
                           },

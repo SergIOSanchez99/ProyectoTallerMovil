@@ -4,6 +4,7 @@ import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../utils/extensions.dart';
+import '../services/report_service.dart';
 
 class ReportHistoryPage extends StatefulWidget {
   const ReportHistoryPage({super.key});
@@ -13,29 +14,43 @@ class ReportHistoryPage extends StatefulWidget {
 }
 
 class _ReportHistoryPageState extends State<ReportHistoryPage> {
-  final List<Map<String, dynamic>> _reports = [
-    {
-      'id': '1',
-      'title': 'Reporte de Colon - 15/03/2024',
-      'date': '2024-03-15',
-      'status': 'Completado',
-      'result': 'Normal',
-    },
-    {
-      'id': '2',
-      'title': 'Reporte de Colon - 10/03/2024',
-      'date': '2024-03-10',
-      'status': 'Completado',
-      'result': 'Anomalía detectada',
-    },
-    {
-      'id': '3',
-      'title': 'Reporte de Colon - 05/03/2024',
-      'date': '2024-03-05',
-      'status': 'En proceso',
-      'result': 'Procesando...',
-    },
-  ];
+  List<Map<String, dynamic>> _reports = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReports();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar reportes cada vez que se accede a la página
+    _loadReports();
+  }
+
+  Future<void> _loadReports() async {
+    print('🔄 Cargando reportes en la página de historial...');
+    
+    // Solo cargar desde archivo la primera vez
+    if (_reports.isEmpty) {
+      try {
+        await ReportService.loadReports();
+      } catch (e) {
+        print('⚠️ Error cargando desde archivo: $e');
+      }
+    }
+    
+    // Obtener todos los reportes (incluyendo los de ejemplo si no hay ninguno)
+    setState(() {
+      _reports = ReportService.getAllReports();
+    });
+    
+    print('📊 Reportes cargados en UI: ${_reports.length}');
+    for (int i = 0; i < _reports.length; i++) {
+      print('📋 UI Reporte $i: ${_reports[i]['title']} - ${_reports[i]['result']}');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +61,13 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
         backgroundColor: AppColors.primaryBlue,
         foregroundColor: AppColors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _loadReports,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Actualizar reportes',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -153,15 +175,20 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(report['title']),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ID: ${report['id']}'),
-            Text('Fecha: ${report['date']}'),
-            Text('Estado: ${report['status']}'),
-            Text('Resultado: ${report['result']}'),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('ID:', report['id']),
+              _buildDetailRow('Fecha:', report['date']),
+              _buildDetailRow('Estado:', report['status']),
+              _buildDetailRow('Resultado:', report['result']),
+              if (report['stage'] != null) _buildDetailRow('Etapa:', report['stage']),
+              if (report['confidence'] != null) _buildDetailRow('Confianza:', '${(report['confidence'] * 100).toStringAsFixed(1)}%'),
+              if (report['riskLevel'] != null) _buildDetailRow('Nivel de Riesgo:', report['riskLevel']),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -175,11 +202,44 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
             },
             child: const Text('Descargar'),
           ),
+          IconButton(
+            onPressed: () async {
+              await ReportService.deleteReport(report['id']);
+              Navigator.of(context).pop();
+              _loadReports(); // Recargar la lista
+              context.showInfoSnackBar('Reporte eliminado');
+            },
+            icon: const Icon(Icons.delete, color: Colors.red),
+            tooltip: 'Eliminar reporte',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Text(value),
+          ),
         ],
       ),
     );
   }
 }
+
+
 
 
 

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
 import 'constants/app_dimensions.dart';
 import 'routes/app_routes.dart';
 import 'routes/route_generator.dart';
+import 'pages/upload_image_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -15,9 +17,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppStrings.appTitle,
-      debugShowCheckedModeBanner: false,
+    return ChangeNotifierProvider<ColonoscopyAnalysisData>(
+      create: (context) => ColonoscopyAnalysisData(),
+      child: MaterialApp(
+        title: AppStrings.appTitle,
+        debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         primaryColor: AppColors.primaryBlue,
@@ -54,6 +58,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: AppRoutes.login,
       onGenerateRoute: RouteGenerator.generateRoute,
+      ),
     );
   }
 }
