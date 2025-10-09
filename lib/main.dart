@@ -52,7 +52,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      initialRoute: AppRoutes.initial,
+      initialRoute: AppRoutes.login,
       onGenerateRoute: RouteGenerator.generateRoute,
     );
   }

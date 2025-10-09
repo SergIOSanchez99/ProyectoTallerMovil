@@ -78,6 +78,21 @@ class InitialUploadPage extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 30),
+                // Botón de logout
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushReplacementNamed(context, AppRoutes.login);
+                  },
+                  child: const Text(
+                    'Cerrar Sesión',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF1E6091),
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
