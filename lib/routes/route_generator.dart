@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../pages/login_page.dart';
+import '../pages/register_page.dart';
 import '../pages/home_page.dart';
 import '../pages/search_page.dart';
 import '../pages/upload_image_page.dart';
@@ -17,6 +18,12 @@ class RouteGenerator {
       case AppRoutes.login:
         return MaterialPageRoute(
           builder: (_) => const LoginPage(),
+          settings: settings,
+        );
+        
+      case AppRoutes.register:
+        return MaterialPageRoute(
+          builder: (_) => const RegisterPage(),
           settings: settings,
         );
         

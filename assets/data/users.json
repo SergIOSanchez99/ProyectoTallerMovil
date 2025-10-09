@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "admin@taller.com",
+      "password": "admin123",
+      "name": "Administrador",
+      "createdAt": "2024-01-01T00:00:00Z",
+      "isActive": true
+    },
+    {
+      "id": "2", 
+      "email": "usuario@prueba.com",
+      "password": "123456",
+      "name": "Usuario Prueba",
+      "createdAt": "2024-01-02T00:00:00Z",
+      "isActive": true
+    }
+  ]
+}

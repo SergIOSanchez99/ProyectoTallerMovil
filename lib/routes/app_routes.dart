@@ -10,6 +10,7 @@ class AppRoutes {
   static const String generateReports = '/generate-reports';
   
   // Rutas de autenticación
+  static const String register = '/register';
   static const String forgotPassword = '/forgot-password';
   static const String resetPassword = '/reset-password';
   
@@ -21,6 +22,7 @@ class AppRoutes {
   static const List<String> allRoutes = [
     splash,
     login,
+    register,
     home,
     search,
     uploadImage,
