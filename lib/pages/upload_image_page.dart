@@ -75,6 +75,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
   String? _selectedImageUrl;
   Uint8List? _selectedImageBytes;
   final AIService _aiService = AIService();
+  final ImagePicker _picker = ImagePicker();
   bool _isAnalyzing = false;
 
   @override
@@ -83,16 +84,16 @@ class _UploadImagePageState extends State<UploadImagePage> {
       create: (context) => ColonoscopyAnalysisData(),
       child: Scaffold(
         backgroundColor: const Color(0xFFF0F8FF), // Fondo azul muy claro
-        appBar: AppBar(
-          title: const Text('Subir Imagen'),
+      appBar: AppBar(
+        title: const Text('Subir Imagen'),
           backgroundColor: const Color(0xFF1E6091),
           foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        body: SafeArea(
+        elevation: 0,
+      ),
+      body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
-            child: Column(
+          child: Column(
               children: <Widget>[
                 const SizedBox(height: 40),
                 // Área de imagen placeholder
@@ -107,23 +108,14 @@ class _UploadImagePageState extends State<UploadImagePage> {
                       width: 2,
                     ),
                   ),
-                  child: _selectedImageUrl != null
+                  child: _selectedImageBytes != null
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(14),
-                          child: Image.network(
-                            _selectedImageUrl!,
+                          child: Image.memory(
+                            _selectedImageBytes!,
                             width: double.infinity,
                             height: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                              return const Center(
-                                child: Icon(
-                                  Icons.broken_image,
-                                  size: 80,
-                                  color: Colors.red,
-                                ),
-                              );
-                            },
                           ),
                         )
                       : const Center(
@@ -151,7 +143,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
                     ),
                     child: const Text(
                       'Subir imagen',
-                      style: TextStyle(
+                        style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -160,7 +152,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
                 ),
                 const SizedBox(height: 20),
                 // Mostrar sección de resultados solo si hay una imagen seleccionada
-                if (_selectedImageUrl != null) ...[
+                if (_selectedImageBytes != null) ...[
                   const ReportAnalysisSection(),
                 ],
               ],
@@ -260,12 +252,18 @@ class _UploadImagePageState extends State<UploadImagePage> {
                   ImageSourceOption(
                     icon: Icons.camera_alt,
                     label: 'Cámara',
-                    onTap: _pickImage, // Call the simulated image picker
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImageFromCamera();
+                    },
                   ),
                   ImageSourceOption(
                     icon: Icons.photo_library,
                     label: 'Galería',
-                    onTap: _pickImage, // Call the simulated image picker
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pickImageFromGallery();
+                    },
                   ),
                 ],
               ),
@@ -277,12 +275,51 @@ class _UploadImagePageState extends State<UploadImagePage> {
     );
   }
 
-  // Simulates image picking and performs real AI analysis
-  Future<void> _pickImage() async {
+  // Seleccionar imagen desde la cámara
+  Future<void> _pickImageFromCamera() async {
     try {
-      // Simular selección de imagen (en producción usarías ImagePicker)
-      setState(() {
-        _selectedImageUrl = 'https://www.gstatic.com/flutter-onestack-prototype/genui/example_1.jpg';
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
+      if (image != null) {
+        await _processSelectedImage(image);
+      }
+    } catch (e) {
+      _showError('Error accediendo a la cámara: $e');
+    }
+  }
+
+  // Seleccionar imagen desde la galería
+  Future<void> _pickImageFromGallery() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
+      if (image != null) {
+        await _processSelectedImage(image);
+      }
+    } catch (e) {
+      _showError('Error accediendo a la galería: $e');
+    }
+  }
+
+  // Procesar imagen seleccionada
+  Future<void> _processSelectedImage(XFile image) async {
+    try {
+      // Leer bytes de la imagen
+      final Uint8List imageBytes = await image.readAsBytes();
+      
+    setState(() {
+        _selectedImageBytes = imageBytes;
+        _selectedImageUrl = image.path; // Para mostrar en la UI
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -292,17 +329,21 @@ class _UploadImagePageState extends State<UploadImagePage> {
         ),
       );
 
-      // Realizar análisis con IA
+      // Realizar análisis con IA usando la imagen real
       await _performAIAnalysis();
       
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error seleccionando imagen: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showError('Error procesando imagen: $e');
     }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
   }
 
   Future<void> _performAIAnalysis() async {
@@ -311,14 +352,21 @@ class _UploadImagePageState extends State<UploadImagePage> {
     });
 
     try {
+      // Verificar que tenemos una imagen seleccionada
+      if (_selectedImageBytes == null) {
+        _showError('No hay imagen seleccionada para analizar');
+        setState(() {
+          _isAnalyzing = false;
+        });
+        return;
+      }
+
       // Intentar análisis real primero
       final response = await _aiService.checkHealth();
       
       if (response.success && response.data == true) {
-        // Backend disponible, usar análisis real
-        final analysisResponse = await _aiService.analyzeImageFromBytes(
-          Uint8List.fromList('fake_image_data'.codeUnits) // Datos simulados
-        );
+        // Backend disponible, usar análisis real con la imagen seleccionada
+        final analysisResponse = await _aiService.analyzeImageFromBytes(_selectedImageBytes!);
         
         if (analysisResponse.success) {
           _updateAnalysisResults(analysisResponse.data!);
