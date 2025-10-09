@@ -126,8 +126,8 @@ class _RegisterPageState extends State<RegisterPage> {
               // Campo de nombre
               CustomTextField(
                 controller: _nameController,
-                labelText: 'Nombre Completo',
-                prefixIcon: Icons.person,
+                label: 'Nombre Completo',
+                prefixIcon: const Icon(Icons.person),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'El nombre es requerido';
@@ -144,8 +144,8 @@ class _RegisterPageState extends State<RegisterPage> {
               // Campo de email
               CustomTextField(
                 controller: _emailController,
-                labelText: 'Correo Electrónico',
-                prefixIcon: Icons.email,
+                label: 'Correo Electrónico',
+                prefixIcon: const Icon(Icons.email),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -163,8 +163,8 @@ class _RegisterPageState extends State<RegisterPage> {
               // Campo de contraseña
               CustomTextField(
                 controller: _passwordController,
-                labelText: 'Contraseña',
-                prefixIcon: Icons.lock,
+                label: 'Contraseña',
+                prefixIcon: const Icon(Icons.lock),
                 obscureText: _obscurePassword,
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -192,8 +192,8 @@ class _RegisterPageState extends State<RegisterPage> {
               // Campo de confirmar contraseña
               CustomTextField(
                 controller: _confirmPasswordController,
-                labelText: 'Confirmar Contraseña',
-                prefixIcon: Icons.lock_outline,
+                label: 'Confirmar Contraseña',
+                prefixIcon: const Icon(Icons.lock_outline),
                 obscureText: _obscureConfirmPassword,
                 suffixIcon: IconButton(
                   icon: Icon(
