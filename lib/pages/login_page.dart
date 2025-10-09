@@ -170,8 +170,8 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = false;
     });
 
-    // Navegar a la página inicial
-    Navigator.pushReplacementNamed(context, AppRoutes.initial);
+    // Navegar a la pantalla principal (Home)
+    Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   void _handleForgotPassword() {
