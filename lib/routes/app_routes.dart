@@ -1,6 +1,7 @@
 class AppRoutes {
   // Rutas principales
   static const String splash = '/';
+  static const String initial = '/initial';
   static const String login = '/login';
   static const String home = '/home';
   static const String search = '/search';
@@ -21,6 +22,7 @@ class AppRoutes {
   // Lista de todas las rutas
   static const List<String> allRoutes = [
     splash,
+    initial,
     login,
     register,
     home,

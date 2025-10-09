@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../pages/initial_upload_page.dart';
 import '../pages/login_page.dart';
 import '../pages/register_page.dart';
 import '../pages/home_page.dart';
@@ -15,6 +16,12 @@ import 'app_routes.dart';
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case AppRoutes.initial:
+        return MaterialPageRoute(
+          builder: (_) => const InitialUploadPage(),
+          settings: settings,
+        );
+        
       case AppRoutes.login:
         return MaterialPageRoute(
           builder: (_) => const LoginPage(),
