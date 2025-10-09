@@ -79,17 +79,38 @@ class _HomePageState extends State<HomePage> {
             ),
             // Barra de navegación inferior
             Container(
-              padding: const EdgeInsets.symmetric(vertical: AppDimensions.spacingS),
               decoration: const BoxDecoration(
-                color: AppColors.lightBlue,
+                color: Color(0xFFB0E0E6), // Azul claro
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(Icons.home, AppStrings.homeNav, 0),
-                  _buildNavItem(Icons.attach_file, AppStrings.attachNav, 1),
-                  _buildNavItem(Icons.history, AppStrings.historyNav, 2),
-                  _buildNavItem(Icons.person, AppStrings.profileNav, 3),
+              child: BottomNavigationBar(
+                currentIndex: 0, // Índice para "Inicio"
+                onTap: _handleNavigation,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: const Color(0xFF1E6091), // Azul oscuro
+                unselectedItemColor: Colors.grey,
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Inicio',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.attach_file),
+                    label: 'Adjuntar',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.book),
+                    label: 'Historial',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Perfil',
+                  ),
                 ],
               ),
             ),
@@ -99,34 +120,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-        _handleNavigation(index);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: AppDimensions.iconSizeM,
-            color: AppColors.primaryBlue,
-          ),
-          const SizedBox(height: AppDimensions.spacingXS),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: AppDimensions.fontSizeS,
-              color: AppColors.primaryBlue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _handleAttachImage() {
     context.pushNamed(AppRoutes.uploadImage);
@@ -141,6 +134,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleNavigation(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
     switch (index) {
       case 0:
         // Ya estamos en inicio
