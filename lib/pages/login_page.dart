@@ -171,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     // Navegar a la página inicial
-    context.pushReplacementNamed(AppRoutes.initial);
+    Navigator.pushReplacementNamed(context, AppRoutes.initial);
   }
 
   void _handleForgotPassword() {
