@@ -122,15 +122,15 @@ class _HomePageState extends State<HomePage> {
 
 
   void _handleAttachImage() {
-    context.pushNamed(AppRoutes.uploadImage);
+    Navigator.pushNamed(context, AppRoutes.uploadImage);
   }
 
   void _handleReportHistory() {
-    context.pushNamed(AppRoutes.reportHistory);
+    Navigator.pushNamed(context, AppRoutes.reportHistory);
   }
 
   void _handleGenerateReports() {
-    context.pushNamed(AppRoutes.generateReports);
+    Navigator.pushNamed(context, AppRoutes.generateReports);
   }
 
   void _handleNavigation(int index) {
@@ -149,7 +149,7 @@ class _HomePageState extends State<HomePage> {
         _handleReportHistory();
         break;
       case 3:
-        context.pushNamed(AppRoutes.profile);
+        Navigator.pushNamed(context, AppRoutes.profile);
         break;
     }
   }
