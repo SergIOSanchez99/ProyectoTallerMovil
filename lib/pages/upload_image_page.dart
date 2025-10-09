@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:typed_data';
 import '../services/ai_service.dart';
+import '../routes/app_routes.dart';
 
 /// Represents the data for a colonoscopy analysis.
 class ColonoscopyAnalysis {
@@ -203,17 +204,15 @@ class _UploadImagePageState extends State<UploadImagePage> {
   void _onItemTapped(int index) {
     switch (index) {
       case 0:
-        // In a real app, this would navigate to a different screen.
-        // For this single-screen app, we'll just show a snackbar.
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Navegar a Inicio'),
-            backgroundColor: Color(0xFF1E6091),
-          ),
+        // Navegar a la página de inicio
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          AppRoutes.home,
+          (route) => false,
         );
         break;
       case 1:
-        // Already on "Adjuntar" screen, do nothing.
+        // Ya estamos en "Adjuntar" screen, no hacer nada
         break;
       case 2:
         _handleReportHistory();
@@ -450,10 +449,7 @@ class ImageSourceOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.pop(context); // Pop the bottom sheet first
-        onTap(); // Then execute the provided onTap callback
-      },
+      onTap: onTap, // Solo ejecutar el callback, no hacer pop aquí
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
