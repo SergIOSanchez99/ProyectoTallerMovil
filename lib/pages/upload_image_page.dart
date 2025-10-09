@@ -67,6 +67,8 @@ class UploadImagePage extends StatefulWidget {
 }
 
 class _UploadImagePageState extends State<UploadImagePage> {
+  // Using a String to store a network image URL, as local file access (dart:io) and
+  // image_picker are not allowed.
   String? _selectedImageUrl;
 
   @override
@@ -82,7 +84,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
           elevation: 0,
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
+          child: Padding(
             padding: const EdgeInsets.all(20.0),
             child: Column(
               children: <Widget>[
@@ -151,7 +153,10 @@ class _UploadImagePageState extends State<UploadImagePage> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const ReportAnalysisSection(),
+                // Mostrar sección de resultados solo si hay una imagen seleccionada
+                if (_selectedImageUrl != null) ...[
+                  const ReportAnalysisSection(),
+                ],
               ],
             ),
           ),
@@ -200,6 +205,8 @@ class _UploadImagePageState extends State<UploadImagePage> {
   void _onItemTapped(int index) {
     switch (index) {
       case 0:
+        // In a real app, this would navigate to a different screen.
+        // For this single-screen app, we'll just show a snackbar.
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Navegar a Inicio'),
@@ -247,18 +254,12 @@ class _UploadImagePageState extends State<UploadImagePage> {
                   ImageSourceOption(
                     icon: Icons.camera_alt,
                     label: 'Cámara',
-                    onTap: () {
-                      Navigator.pop(context); // Pop the bottom sheet
-                      _pickImage(); // Then execute the provided onTap callback
-                    },
+                    onTap: _pickImage, // Call the simulated image picker
                   ),
                   ImageSourceOption(
                     icon: Icons.photo_library,
                     label: 'Galería',
-                    onTap: () {
-                      Navigator.pop(context); // Pop the bottom sheet
-                      _pickImage(); // Then execute the provided onTap callback
-                    },
+                    onTap: _pickImage, // Call the simulated image picker
                   ),
                 ],
               ),
@@ -271,6 +272,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
   }
 
   // Simulates image picking by setting a placeholder network image URL.
+  // The 'source' parameter (from ImageSource) is no longer used due to restrictions.
   Future<void> _pickImage() async {
     setState(() {
       _selectedImageUrl = 'https://www.gstatic.com/flutter-onestack-prototype/genui/example_1.jpg';
@@ -318,7 +320,10 @@ class ImageSourceOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap, // onTap already handles popping the sheet and then performing action
+      onTap: () {
+        Navigator.pop(context); // Pop the bottom sheet first
+        onTap(); // Then execute the provided onTap callback
+      },
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(

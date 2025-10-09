@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handleAttachImage() {
-    context.pushNamed(AppRoutes.initial);
+    context.pushNamed(AppRoutes.uploadImage);
   }
 
   void _handleReportHistory() {
