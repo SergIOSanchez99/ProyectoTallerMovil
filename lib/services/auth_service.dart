@@ -1,39 +1,104 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../model/user.dart';
 import '../model/api_response.dart';
 
 class AuthService {
   static const String _usersFilePath = 'assets/data/users.json';
+  static const String _usersKey = 'saved_users';
   
-  // Lista de usuarios en memoria (se carga desde JSON)
+  // Lista de usuarios en memoria
   static List<Map<String, dynamic>> _users = [];
+  static bool _isInitialized = false;
 
-  /// Carga los usuarios desde el archivo JSON
-  static Future<void> _loadUsers() async {
+  /// Inicializar el servicio y cargar usuarios guardados
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    try {
+      await _loadUsersFromStorage();
+      _isInitialized = true;
+      print('✅ AuthService inicializado con ${_users.length} usuarios');
+    } catch (e) {
+      print('⚠️ Error inicializando AuthService: $e');
+      await _loadUsersFromAssets();
+      _isInitialized = true;
+    }
+  }
+
+  /// Cargar usuarios desde SharedPreferences
+  static Future<void> _loadUsersFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? usersJson = prefs.getString(_usersKey);
+      
+      if (usersJson != null && usersJson.isNotEmpty) {
+        final List<dynamic> usersList = json.decode(usersJson);
+        _users = usersList.cast<Map<String, dynamic>>();
+        print('📂 Usuarios cargados desde almacenamiento: ${_users.length}');
+        _debugShowAllUsers(); // Mostrar usuarios al cargar
+      } else {
+        print('📝 No hay usuarios guardados, cargando desde assets');
+        await _loadUsersFromAssets();
+        await _saveUsersToStorage();
+      }
+    } catch (e) {
+      print('⚠️ Error cargando usuarios desde almacenamiento: $e');
+      await _loadUsersFromAssets();
+    }
+  }
+
+  /// Cargar usuarios desde assets (usuarios iniciales)
+  static Future<void> _loadUsersFromAssets() async {
     try {
       final String jsonString = await rootBundle.loadString(_usersFilePath);
       final Map<String, dynamic> jsonData = json.decode(jsonString);
       _users = List<Map<String, dynamic>>.from(jsonData['users'] ?? []);
+      print('📂 Usuarios cargados desde assets: ${_users.length}');
     } catch (e) {
-      print('Error cargando usuarios: $e');
+      print('⚠️ Error cargando usuarios desde assets: $e');
       _users = [];
     }
   }
 
-  /// Guarda los usuarios en el archivo JSON (solo en memoria para esta demo)
-  static Future<void> _saveUsers() async {
-    // En una implementación real, aquí guardarías en el archivo
-    // Para esta demo, solo mantenemos en memoria
-    print('Usuarios actualizados en memoria');
+  /// Guardar usuarios en SharedPreferences
+  static Future<void> _saveUsersToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String usersJson = json.encode(_users);
+      await prefs.setString(_usersKey, usersJson);
+      print('💾 Usuarios guardados en almacenamiento: ${_users.length}');
+      _debugShowAllUsers(); // Mostrar usuarios después de guardar
+    } catch (e) {
+      print('⚠️ Error guardando usuarios: $e');
+    }
+  }
+
+  /// Función de debug para mostrar todos los usuarios
+  static void _debugShowAllUsers() {
+    print('👥 === LISTA COMPLETA DE USUARIOS ===');
+    for (int i = 0; i < _users.length; i++) {
+      final user = _users[i];
+      print('👤 Usuario ${i + 1}:');
+      print('   📧 Email: ${user['email']}');
+      print('   👤 Nombre: ${user['name']}');
+      print('   🔑 ID: ${user['id']}');
+      print('   📅 Creado: ${user['createdAt']}');
+      print('   ✅ Activo: ${user['isActive']}');
+      print('');
+    }
+    print('👥 === FIN DE LA LISTA ===');
   }
 
   /// Autentica un usuario con email y contraseña
   Future<ApiResponse<User>> login(String email, String password) async {
     try {
-      // Cargar usuarios desde JSON
-      await _loadUsers();
+      // Asegurar que el servicio esté inicializado
+      if (!_isInitialized) {
+        await initialize();
+      }
       
       // Simulamos un delay de red
       await Future.delayed(const Duration(seconds: 1));
@@ -79,7 +144,9 @@ class AuthService {
   /// Obtiene el usuario actual (simulado)
   Future<ApiResponse<User>> getCurrentUser() async {
     try {
-      await _loadUsers();
+      if (!_isInitialized) {
+        await initialize();
+      }
       await Future.delayed(const Duration(milliseconds: 500));
       
       if (_users.isEmpty) {
@@ -113,7 +180,9 @@ class AuthService {
   /// Recupera contraseña (simulado)
   Future<ApiResponse<bool>> forgotPassword(String email) async {
     try {
-      await _loadUsers();
+      if (!_isInitialized) {
+        await initialize();
+      }
       await Future.delayed(const Duration(seconds: 1));
 
       if (email.isEmpty) {
@@ -146,7 +215,9 @@ class AuthService {
     required String name,
   }) async {
     try {
-      await _loadUsers();
+      if (!_isInitialized) {
+        await initialize();
+      }
       await Future.delayed(const Duration(seconds: 1));
 
       // Validaciones
@@ -188,9 +259,9 @@ class AuthService {
         'isActive': true,
       };
 
-      // Agregar a la lista (en memoria)
+      // Agregar a la lista y guardar permanentemente
       _users.add(newUser);
-      await _saveUsers();
+      await _saveUsersToStorage();
 
       // Crear objeto User para retornar
       final user = User(
@@ -207,7 +278,17 @@ class AuthService {
 
   /// Obtiene todos los usuarios (para debug)
   Future<List<Map<String, dynamic>>> getAllUsers() async {
-    await _loadUsers();
+    if (!_isInitialized) {
+      await initialize();
+    }
     return List.from(_users);
+  }
+
+  /// Método público para mostrar todos los usuarios en consola (debug)
+  static Future<void> debugShowAllUsers() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+    _debugShowAllUsers();
   }
 }
