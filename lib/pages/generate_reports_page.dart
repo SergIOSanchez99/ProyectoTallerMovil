@@ -46,6 +46,10 @@ class _GenerateReportsPageState extends State<GenerateReportsPage> {
             key: _formKey,
             child: Column(
               children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
                 // Formulario de datos del paciente
                 CustomCard(
                   child: Column(
@@ -119,8 +123,11 @@ class _GenerateReportsPageState extends State<GenerateReportsPage> {
                     ],
                   ),
                 ),
-                const Spacer(),
-                // Botón de generar
+                      ],
+                    ),
+                  ),
+                ),
+                // Botón de generar (fuera del scroll)
                 CustomButton(
                   text: 'Generar Reporte',
                   onPressed: _handleGenerateReport,
