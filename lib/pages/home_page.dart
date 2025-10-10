@@ -84,19 +84,24 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                           const SizedBox(height: AppDimensions.spacingL),
-                          // Fila inferior: Generar reportes (centrado)
+                          // Fila inferior: Generar reportes y Realizar Segmentación
                           Row(
                             children: [
-                              const Spacer(),
-                              SizedBox(
-                                width: context.screenWidth * 0.35,
+                              Expanded(
                                 child: ActionCard(
-                                  icon: Icons.attach_file,
+                                  icon: Icons.description,
                                   title: AppStrings.generateReports,
                                   onTap: _handleGenerateReports,
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: AppDimensions.spacingM),
+                              Expanded(
+                                child: ActionCard(
+                                  icon: Icons.biotech,
+                                  title: AppStrings.performSegmentation,
+                                  onTap: _handlePerformSegmentation,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -160,6 +165,22 @@ class _HomePageState extends State<HomePage> {
 
   void _handleGenerateReports() {
     Navigator.pushNamed(context, AppRoutes.generateReports);
+  }
+
+  void _handlePerformSegmentation() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(AppStrings.performSegmentationComingSoon),
+        backgroundColor: AppColors.info,
+        action: SnackBarAction(
+          label: 'OK',
+          textColor: AppColors.white,
+          onPressed: () {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          },
+        ),
+      ),
+    );
   }
 
   void _handleNavigation(int index) {
