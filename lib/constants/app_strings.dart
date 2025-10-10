@@ -14,6 +14,7 @@ class AppStrings {
   static const String attachImage = 'Adjuntar imagen';
   static const String reportHistory = 'Historial de reportes';
   static const String generateReports = 'Generar reportes';
+  static const String performSegmentation = 'Realizar Segmentación';
   
   // Navegación
   static const String homeNav = 'Inicio';
@@ -26,6 +27,7 @@ class AppStrings {
   static const String attachImageComingSoon = 'Funcionalidad de adjuntar imagen próximamente';
   static const String reportHistoryComingSoon = 'Funcionalidad de historial de reportes próximamente';
   static const String generateReportsComingSoon = 'Funcionalidad de generar reportes próximamente';
+  static const String performSegmentationComingSoon = 'Funcionalidad de segmentación próximamente';
   static const String profileComingSoon = 'Funcionalidad de perfil próximamente';
   static const String forgotPasswordComingSoon = 'Funcionalidad de recuperar contraseña próximamente';
 }
