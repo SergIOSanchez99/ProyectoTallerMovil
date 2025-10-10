@@ -1,39 +1,69 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ReportService {
-  static const String _reportsFilePath = 'assets/data/reports.json';
+  static const String _reportsKey = 'saved_reports';
   static List<Map<String, dynamic>> _reports = [];
+  static bool _isInitialized = false;
 
-  /// Cargar reportes desde el archivo JSON
-  static Future<void> loadReports() async {
+  /// Inicializar el servicio y cargar reportes guardados
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+    
     try {
-      final String jsonString = await rootBundle.loadString(_reportsFilePath);
-      final Map<String, dynamic> jsonData = json.decode(jsonString);
-      final fileReports = List<Map<String, dynamic>>.from(jsonData['reports'] ?? []);
+      await _loadReportsFromStorage();
+      _isInitialized = true;
+      print('✅ ReportService inicializado con ${_reports.length} reportes');
+    } catch (e) {
+      print('⚠️ Error inicializando ReportService: $e');
+      _initializeSampleReports();
+      _isInitialized = true;
+    }
+  }
+
+  /// Cargar reportes desde SharedPreferences
+  static Future<void> _loadReportsFromStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? reportsJson = prefs.getString(_reportsKey);
       
-      // Solo cargar reportes del archivo si no hay reportes en memoria
-      if (_reports.isEmpty) {
-        _reports = fileReports;
-        print('📂 Reportes cargados desde archivo: ${_reports.length}');
+      if (reportsJson != null && reportsJson.isNotEmpty) {
+        final List<dynamic> reportsList = json.decode(reportsJson);
+        _reports = reportsList.cast<Map<String, dynamic>>();
+        print('📂 Reportes cargados desde almacenamiento: ${_reports.length}');
       } else {
-        print('📊 Manteniendo reportes en memoria: ${_reports.length} (archivo ignorado)');
+        print('📝 No hay reportes guardados, inicializando con ejemplos');
+        _initializeSampleReports();
+        await _saveReportsToStorage();
       }
     } catch (e) {
-      print('⚠️ Error cargando reportes desde archivo: $e');
-      // Mantener los reportes que ya están en memoria
-      print('📊 Manteniendo reportes en memoria: ${_reports.length}');
+      print('⚠️ Error cargando reportes desde almacenamiento: $e');
+      _initializeSampleReports();
+    }
+  }
+
+  /// Guardar reportes en SharedPreferences
+  static Future<void> _saveReportsToStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String reportsJson = json.encode(_reports);
+      await prefs.setString(_reportsKey, reportsJson);
+      print('💾 Reportes guardados en almacenamiento: ${_reports.length}');
+    } catch (e) {
+      print('⚠️ Error guardando reportes: $e');
     }
   }
 
   /// Obtener todos los reportes
   static List<Map<String, dynamic>> getAllReports() {
-    // Si no hay reportes, agregar algunos de ejemplo
-    if (_reports.isEmpty) {
-      _initializeSampleReports();
-    }
     return List.from(_reports);
+  }
+
+  /// Cargar reportes (método público para la UI)
+  static Future<void> loadReports() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
   }
 
   /// Inicializar reportes de ejemplo
@@ -97,6 +127,9 @@ class ReportService {
       print('📋 Reporte $i: ${_reports[i]['title']} - ${_reports[i]['result']}');
     }
     
+    // Guardar en almacenamiento persistente
+    await _saveReportsToStorage();
+    
     print('✅ Proceso de agregado completado');
   }
 
@@ -112,6 +145,7 @@ class ReportService {
   /// Eliminar un reporte
   static Future<void> deleteReport(String id) async {
     _reports.removeWhere((report) => report['id'] == id);
+    await _saveReportsToStorage();
     print('🗑️ Reporte eliminado: $id');
   }
 
@@ -152,3 +186,4 @@ class ReportService {
     };
   }
 }
+
