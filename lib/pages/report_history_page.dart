@@ -5,6 +5,7 @@ import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../utils/extensions.dart';
 import '../services/report_service.dart';
+import '../services/pdf_service.dart';
 
 class ReportHistoryPage extends StatefulWidget {
   const ReportHistoryPage({super.key});
@@ -196,9 +197,9 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
             child: const Text('Cerrar'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(context).pop();
-              context.showInfoSnackBar('Descargando reporte...');
+              await _downloadReportAsPDF(report);
             },
             child: const Text('Descargar'),
           ),
@@ -236,6 +237,26 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
         ],
       ),
     );
+  }
+
+  /// Descarga el reporte como PDF
+  Future<void> _downloadReportAsPDF(Map<String, dynamic> report) async {
+    try {
+      // Mostrar indicador de carga
+      context.showInfoSnackBar('Generando PDF...');
+      
+      // Generar y descargar el PDF
+      final success = await PDFService.generateAndDownloadReport(report);
+      
+      if (success) {
+        context.showInfoSnackBar('PDF generado y descargado exitosamente');
+      } else {
+        context.showErrorSnackBar('Error al generar el PDF');
+      }
+    } catch (e) {
+      print('Error en descarga de PDF: $e');
+      context.showErrorSnackBar('Error al generar el PDF: $e');
+    }
   }
 }
 
