@@ -3,7 +3,6 @@ import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
-import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
 import '../services/auth_service.dart';
 

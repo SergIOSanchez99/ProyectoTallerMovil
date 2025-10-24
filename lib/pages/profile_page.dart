@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_button.dart';
@@ -65,10 +64,10 @@ class _ProfilePageState extends State<ProfilePage> {
               CustomCard(
                 child: Column(
                   children: [
-                    CircleAvatar(
+                    const CircleAvatar(
                       radius: 50,
                       backgroundColor: AppColors.primaryBlue,
-                      child: const Icon(
+                      child: Icon(
                         Icons.person,
                         size: 50,
                         color: AppColors.white,

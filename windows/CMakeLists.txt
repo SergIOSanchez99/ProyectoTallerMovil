@@ -1,5 +1,11 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Configurar generador para usar MinGW Makefiles
+if(NOT CMAKE_GENERATOR)
+    set(CMAKE_GENERATOR "MinGW Makefiles" CACHE STRING "CMake generator" FORCE)
+endif()
+
 project(taller_movil_proyecto LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change

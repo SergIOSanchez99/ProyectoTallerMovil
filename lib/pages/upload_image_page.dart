@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:typed_data';
 import '../services/ai_service.dart';
 import '../services/report_service.dart';
@@ -610,11 +608,11 @@ class ReportAnalysisSection extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
+            child: const Padding(
+              padding: EdgeInsets.all(20.0),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Análisis de la colonoscopia',
                     style: TextStyle(
                       fontSize: 20,
@@ -622,8 +620,8 @@ class ReportAnalysisSection extends StatelessWidget {
                       color: Colors.black,
                     ),
                   ),
-                  const SizedBox(height: 15),
-                  const Text(
+                  SizedBox(height: 15),
+                  Text(
                     'Selecciona una imagen para ver el análisis automático de cáncer de colon',
                     style: TextStyle(
                       fontSize: 16,

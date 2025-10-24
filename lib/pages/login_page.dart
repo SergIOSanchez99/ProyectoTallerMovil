@@ -8,7 +8,6 @@ import '../widgets/custom_card.dart';
 import '../utils/validators.dart';
 import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
-import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
