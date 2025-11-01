@@ -43,3 +43,35 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Python virtual environments
+**/venv/
+**/env/
+**/.venv/
+
+# Python cache and compiled files
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Android local properties (contains local paths)
+android/local.properties
+*.aab
+*.apk
+*.ap_
+*.aar
+
+# iOS generated files
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/App.framework/
+**/ios/Flutter/ephemeral/
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework/
+**/ios/Flutter/Flutter.podspec
+
+# Windows CMake configuration files
+windows/cmake_config.txt
+windows/cmake_generator.txt
