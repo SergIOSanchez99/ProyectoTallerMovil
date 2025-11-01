@@ -1,0 +1,14 @@
+artifact_uri: file:C:/Repositorios/ProyectoTallerMovil/backend/runs/mlflow/254090912109109268/7689596018274f6eadb8e5e4c7bd2596/artifacts
+end_time: 1761359337609
+entry_point_name: ''
+experiment_id: '254090912109109268'
+lifecycle_stage: active
+run_id: 7689596018274f6eadb8e5e4c7bd2596
+run_name: colon_cancer_cls2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1761359295556
+status: 3
+tags: []
+user_id: wguia03

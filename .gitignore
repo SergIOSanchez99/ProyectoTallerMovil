@@ -55,6 +55,9 @@ app.*.map.json
 *$py.class
 *.so
 
+# Backend data folder (contains large dataset files)
+/backend/data/
+
 # Android local properties (contains local paths)
 android/local.properties
 *.aab
