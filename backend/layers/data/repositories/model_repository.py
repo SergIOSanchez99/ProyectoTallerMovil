@@ -7,14 +7,19 @@ import logging
 import numpy as np
 from tensorflow.keras.models import load_model
 import os
+import sys
 from typing import Optional
+
+# Agregar el directorio raíz del backend al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../'))
+from config.settings import Settings
 
 class ModelRepository:
     """Repositorio para el modelo de machine learning"""
     
-    def __init__(self, model_path: str = "colon_cancer_binary_cnn.h5"):
+    def __init__(self, model_path: str = None):
         self.logger = logging.getLogger(__name__)
-        self.model_path = model_path
+        self.model_path = model_path or Settings.MODEL_PATH
         self.model = None
         self._load_model()
     

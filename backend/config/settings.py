@@ -14,7 +14,7 @@ class Settings:
     API_DEBUG = os.getenv('API_DEBUG', 'False').lower() == 'true'
     
     # Model Settings
-    MODEL_PATH = os.getenv('MODEL_PATH', 'colon_cancer_binary_cnn.h5')
+    MODEL_PATH = os.getenv('MODEL_PATH', 'model_v1/colon_cancer_binary_cnn.h5')
     TARGET_IMAGE_SIZE = (128, 128)
     
     # Logging Settings

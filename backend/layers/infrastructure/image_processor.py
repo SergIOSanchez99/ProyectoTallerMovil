@@ -8,14 +8,20 @@ import base64
 from io import BytesIO
 from PIL import Image
 import logging
+import os
+import sys
+
+# Agregar el directorio raíz del backend al path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../'))
+from config.settings import Settings
 
 from .exceptions.api_exceptions import ImageProcessingError
 
 class ImageProcessor:
     """Procesador de imágenes médicas"""
     
-    def __init__(self, target_size: tuple = (128, 128)):
-        self.target_size = target_size
+    def __init__(self, target_size: tuple = None):
+        self.target_size = target_size or Settings.TARGET_IMAGE_SIZE
         self.logger = logging.getLogger(__name__)
     
     def process_image(self, image_data: str) -> np.ndarray:
