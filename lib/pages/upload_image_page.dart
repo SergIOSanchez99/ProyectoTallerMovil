@@ -85,16 +85,9 @@ class ColonoscopyAnalysisData extends ChangeNotifier {
 
     final bool success = await handleGenerateReport();
 
-    // Si el reporte se generó exitosamente y hay análisis disponible
-    if (success && _hasAnalysis && _analysis != null) {
-      // Guardar el reporte en el historial
-      await ReportService.addReport(
-        result: _analysis!.result,
-        stage: _analysis!.currentStage,
-        confidence: 0.85, // Podrías agregar confidence al modelo si lo necesitas
-        riskLevel: _getRiskLevel(_analysis!.result),
-      );
-    }
+    // Nota: El reporte ya se guarda automáticamente cuando se completa el análisis
+    // en _updateAnalysisResults, así que no es necesario guardarlo aquí nuevamente
+    // a menos que queramos crear un reporte adicional
 
     _isGeneratingReport = false;
     notifyListeners();
@@ -470,30 +463,53 @@ class _UploadImagePageState extends State<UploadImagePage> {
     }
   }
 
-  void _updateAnalysisResults(Map<String, dynamic> data) {
+  void _updateAnalysisResults(Map<String, dynamic> data) async {
     print('🔍 Actualizando resultados del análisis...');
     print('📊 Datos recibidos: $data');
     
     // Actualizar los resultados en el provider
     final provider = Provider.of<ColonoscopyAnalysisData>(context, listen: false);
     
+    // Extraer datos del análisis
+    final result = data['result'] ?? 'Análisis completado';
+    final stage = data['stage'] ?? 'Etapa evaluada';
+    final confidence = (data['confidence'] ?? 0.0).toDouble();
+    final riskLevel = data['risk_level'] ?? 'Desconocido';
+    
     // Actualizar análisis con datos reales del backend
     provider.updateAnalysisFromBackend(
-      result: data['result'] ?? 'Análisis completado',
-      stage: data['stage'] ?? 'Etapa evaluada',
-      confidence: (data['confidence'] ?? 0.0).toDouble(),
-      riskLevel: data['risk_level'] ?? 'Desconocido',
+      result: result,
+      stage: stage,
+      confidence: confidence,
+      riskLevel: riskLevel,
     );
     
     print('✅ Análisis actualizado en el provider');
     
+    // Guardar automáticamente el reporte en el historial
+    try {
+      print('💾 Guardando reporte automáticamente en el historial...');
+      await ReportService.addReport(
+        result: result,
+        stage: stage,
+        confidence: confidence,
+        riskLevel: riskLevel,
+      );
+      print('✅ Reporte guardado automáticamente en el historial');
+    } catch (e) {
+      print('❌ Error guardando reporte automáticamente: $e');
+    }
+    
     // Mostrar mensaje de éxito
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Análisis completado: ${data['result']}'),
-        backgroundColor: const Color(0xFF191970),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Análisis completado: $result. Reporte guardado en el historial.'),
+          backgroundColor: const Color(0xFF191970),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _handleReportHistory() {

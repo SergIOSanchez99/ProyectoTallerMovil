@@ -28,27 +28,38 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
     // Recargar reportes cada vez que se accede a la página
     _loadReports();
   }
+  
+  @override
+  void didUpdateWidget(ReportHistoryPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Recargar reportes cuando el widget se actualiza
+    _loadReports();
+  }
 
   Future<void> _loadReports() async {
     print('🔄 Cargando reportes en la página de historial...');
     
-    // Solo cargar desde archivo la primera vez
-    if (_reports.isEmpty) {
-      try {
-        await ReportService.loadReports();
-      } catch (e) {
-        print('⚠️ Error cargando desde archivo: $e');
+    try {
+      // Siempre recargar desde el almacenamiento para obtener los últimos reportes
+      await ReportService.loadReports();
+      
+      // Obtener todos los reportes
+      final loadedReports = ReportService.getAllReports();
+      
+      setState(() {
+        _reports = loadedReports;
+      });
+      
+      print('📊 Reportes cargados en UI: ${_reports.length}');
+      for (int i = 0; i < _reports.length; i++) {
+        print('📋 UI Reporte $i: ${_reports[i]['title']} - ${_reports[i]['result']}');
       }
-    }
-    
-    // Obtener todos los reportes (incluyendo los de ejemplo si no hay ninguno)
-    setState(() {
-      _reports = ReportService.getAllReports();
-    });
-    
-    print('📊 Reportes cargados en UI: ${_reports.length}');
-    for (int i = 0; i < _reports.length; i++) {
-      print('📋 UI Reporte $i: ${_reports[i]['title']} - ${_reports[i]['result']}');
+    } catch (e) {
+      print('⚠️ Error cargando reportes: $e');
+      // Si hay error, al menos mostrar los reportes en memoria
+      setState(() {
+        _reports = ReportService.getAllReports();
+      });
     }
   }
 
@@ -185,7 +196,7 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
               _buildDetailRow('Estado:', report['status']),
               _buildDetailRow('Resultado:', report['result']),
               if (report['stage'] != null) _buildDetailRow('Etapa:', report['stage']),
-              if (report['confidence'] != null) _buildDetailRow('Confianza:', '${(report['confidence'] * 100).toStringAsFixed(1)}%'),
+              if (report['confidence'] != null) _buildDetailRow('Confianza:', '${_formatConfidence(report['confidence'])}%'),
               if (report['riskLevel'] != null) _buildDetailRow('Nivel de Riesgo:', report['riskLevel']),
             ],
           ),
@@ -238,23 +249,89 @@ class _ReportHistoryPageState extends State<ReportHistoryPage> {
     );
   }
 
+  /// Formatea el valor de confianza de forma segura
+  String _formatConfidence(dynamic confidence) {
+    try {
+      if (confidence == null) return '0.0';
+      double confValue;
+      if (confidence is double) {
+        confValue = confidence;
+      } else if (confidence is int) {
+        confValue = confidence.toDouble();
+      } else if (confidence is String) {
+        confValue = double.tryParse(confidence) ?? 0.0;
+      } else {
+        confValue = 0.0;
+      }
+      return (confValue * 100).toStringAsFixed(1);
+    } catch (e) {
+      print('Error formateando confianza: $e');
+      return '0.0';
+    }
+  }
+
   /// Descarga el reporte como PDF
   Future<void> _downloadReportAsPDF(Map<String, dynamic> report) async {
     try {
+      print('🔄 Iniciando descarga de PDF para reporte: ${report['id']}');
+      print('📋 Datos del reporte: ${report.keys.toList()}');
+      
+      // Validar que el reporte tenga los datos necesarios
+      if (report.isEmpty) {
+        print('❌ Error: El reporte está vacío');
+        if (mounted) {
+          context.showErrorSnackBar('Error: El reporte no tiene datos');
+        }
+        return;
+      }
+      
       // Mostrar indicador de carga
-      context.showInfoSnackBar('Generando PDF...');
+      if (mounted) {
+        context.showInfoSnackBar('Generando PDF...');
+      }
       
       // Generar y descargar el PDF
+      print('📄 Llamando a PDFService.generateAndDownloadReport...');
       final success = await PDFService.generateAndDownloadReport(report);
+      print('📄 Resultado de generateAndDownloadReport: $success');
       
-      if (success) {
-        context.showInfoSnackBar('PDF generado y descargado exitosamente');
-      } else {
-        context.showErrorSnackBar('Error al generar el PDF');
+      if (mounted) {
+        if (success) {
+          context.showSuccessSnackBar('PDF generado exitosamente. Se abrió el menú para guardar o compartir.');
+        } else {
+          // Mostrar mensaje de error más detallado
+          final errorMsg = 'Error al generar el PDF. Por favor, revisa los logs de la consola para más detalles.';
+          context.showErrorSnackBar(errorMsg);
+          print('❌ La generación del PDF falló. Revisa los logs anteriores para más detalles.');
+        }
       }
-    } catch (e) {
-      print('Error en descarga de PDF: $e');
-      context.showErrorSnackBar('Error al generar el PDF: $e');
+    } catch (e, stackTrace) {
+      print('❌ Error en descarga de PDF: $e');
+      print('❌ Tipo de error: ${e.runtimeType}');
+      print('❌ Stack trace: $stackTrace');
+      if (mounted) {
+        // Mostrar mensaje de error más descriptivo
+        String errorMessage = 'Error al generar el PDF';
+        String errorString = e.toString().toLowerCase();
+        
+        if (errorString.contains('permission') || errorString.contains('permiso')) {
+          errorMessage = 'Error: Permisos insuficientes. Verifica los permisos de almacenamiento en la configuración de la app.';
+        } else if (errorString.contains('path') || errorString.contains('ruta')) {
+          errorMessage = 'Error: No se pudo acceder al directorio. Verifica los permisos de almacenamiento.';
+        } else if (errorString.contains('file') || errorString.contains('archivo')) {
+          errorMessage = 'Error: Problema al crear el archivo PDF. Revisa los logs para más detalles.';
+        } else if (errorString.contains('share') || errorString.contains('compartir')) {
+          errorMessage = 'Error: No se pudo compartir el archivo. El PDF se generó pero no se pudo abrir el menú de compartir.';
+        } else {
+          errorMessage = 'Error al generar el PDF: ${e.toString()}. Revisa los logs para más detalles.';
+        }
+        
+        // Mostrar el mensaje de error
+        context.showErrorSnackBar(errorMessage);
+        
+        // También imprimir información adicional
+        print('📋 Información del error mostrada al usuario: $errorMessage');
+      }
     }
   }
 }
