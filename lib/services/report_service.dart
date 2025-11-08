@@ -8,16 +8,33 @@ class ReportService {
 
   /// Inicializar el servicio y cargar reportes guardados
   static Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_isInitialized) {
+      print('ℹ️ ReportService ya está inicializado con ${_reports.length} reportes');
+      return;
+    }
     
     try {
+      print('🔄 Inicializando ReportService...');
       await _loadReportsFromStorage();
       _isInitialized = true;
-      print('✅ ReportService inicializado con ${_reports.length} reportes');
-    } catch (e) {
-      print('⚠️ Error inicializando ReportService: $e');
-      _initializeSampleReports();
+      print('✅ ReportService inicializado exitosamente con ${_reports.length} reportes');
+      
+      // Verificar que los reportes están en memoria
+      if (_reports.isNotEmpty) {
+        print('📊 Reportes cargados en memoria:');
+        for (int i = 0; i < _reports.length; i++) {
+          print('  - ${_reports[i]['title']} (ID: ${_reports[i]['id']})');
+        }
+      } else {
+        print('ℹ️ No hay reportes guardados aún. Los nuevos análisis se guardarán automáticamente.');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error inicializando ReportService: $e');
+      print('❌ Stack trace: $stackTrace');
+      // En caso de error, inicializar lista vacía (NO usar ejemplos)
+      _reports = [];
       _isInitialized = true;
+      print('⚠️ ReportService inicializado con lista vacía debido a error');
     }
   }
 
@@ -31,26 +48,62 @@ class ReportService {
         final List<dynamic> reportsList = json.decode(reportsJson);
         _reports = reportsList.cast<Map<String, dynamic>>();
         print('📂 Reportes cargados desde almacenamiento: ${_reports.length}');
+        
+        // Verificar que los reportes se cargaron correctamente
+        for (int i = 0; i < _reports.length; i++) {
+          print('📋 Reporte cargado $i: ${_reports[i]['title']} - ID: ${_reports[i]['id']}');
+        }
       } else {
-        print('📝 No hay reportes guardados, inicializando con ejemplos');
-        _initializeSampleReports();
-        await _saveReportsToStorage();
+        print('📝 No hay reportes guardados en almacenamiento');
+        // NO inicializar reportes de ejemplo automáticamente
+        // Solo inicializar la lista vacía
+        _reports = [];
+        print('📝 Lista de reportes inicializada vacía (sin ejemplos)');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('⚠️ Error cargando reportes desde almacenamiento: $e');
-      _initializeSampleReports();
+      print('⚠️ Stack trace: $stackTrace');
+      // En caso de error, inicializar lista vacía
+      _reports = [];
+      print('📝 Lista de reportes inicializada vacía debido a error');
     }
   }
 
   /// Guardar reportes en SharedPreferences
   static Future<void> _saveReportsToStorage() async {
     try {
+      print('💾 Iniciando guardado de reportes...');
+      print('📊 Total de reportes a guardar: ${_reports.length}');
+      
       final prefs = await SharedPreferences.getInstance();
       final String reportsJson = json.encode(_reports);
-      await prefs.setString(_reportsKey, reportsJson);
-      print('💾 Reportes guardados en almacenamiento: ${_reports.length}');
-    } catch (e) {
-      print('⚠️ Error guardando reportes: $e');
+      
+      // Verificar que el JSON se generó correctamente
+      if (reportsJson.isEmpty) {
+        print('⚠️ Advertencia: El JSON generado está vacío');
+      }
+      
+      final success = await prefs.setString(_reportsKey, reportsJson);
+      
+      if (success) {
+        print('✅ Reportes guardados exitosamente en SharedPreferences');
+        print('📊 Reportes guardados: ${_reports.length}');
+        
+        // Verificar que se guardaron correctamente leyendo de vuelta
+        final String? savedJson = prefs.getString(_reportsKey);
+        if (savedJson != null && savedJson.isNotEmpty) {
+          final List<dynamic> savedList = json.decode(savedJson);
+          print('✅ Verificación: ${savedList.length} reportes confirmados en almacenamiento');
+        } else {
+          print('⚠️ Advertencia: No se pudo verificar el guardado');
+        }
+      } else {
+        print('❌ Error: No se pudo guardar en SharedPreferences');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error guardando reportes: $e');
+      print('❌ Stack trace: $stackTrace');
+      rethrow; // Relanzar el error para que se pueda manejar arriba
     }
   }
 
@@ -60,9 +113,15 @@ class ReportService {
   }
 
   /// Cargar reportes (método público para la UI)
+  /// Recarga los reportes desde el almacenamiento persistente
   static Future<void> loadReports() async {
     if (!_isInitialized) {
       await initialize();
+    } else {
+      // Si ya está inicializado, recargar desde el almacenamiento
+      print('🔄 Recargando reportes desde almacenamiento...');
+      await _loadReportsFromStorage();
+      print('✅ Reportes recargados: ${_reports.length}');
     }
   }
 
@@ -102,33 +161,55 @@ class ReportService {
     required double confidence,
     required String riskLevel,
   }) async {
+    // Asegurar que el servicio esté inicializado
+    if (!_isInitialized) {
+      print('⚠️ ReportService no inicializado, inicializando ahora...');
+      await initialize();
+    }
+    
     print('🔄 Iniciando agregado de reporte...');
     print('📊 Reportes antes de agregar: ${_reports.length}');
     
+    // Generar ID único basado en timestamp
+    final now = DateTime.now();
+    final reportId = '${now.millisecondsSinceEpoch}_${now.microsecondsSinceEpoch}';
+    
     final newReport = {
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
-      'title': 'Reporte de Colonoscopia - ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-      'date': DateTime.now().toIso8601String().split('T')[0],
+      'id': reportId,
+      'title': 'Reporte de Colonoscopia - ${now.day}/${now.month}/${now.year}',
+      'date': now.toIso8601String().split('T')[0],
       'status': 'Completado',
       'result': result,
       'stage': stage,
       'confidence': confidence,
       'riskLevel': riskLevel,
-      'createdAt': DateTime.now().toIso8601String(),
+      'createdAt': now.toIso8601String(),
     };
 
-    _reports.insert(0, newReport); // Agregar al inicio de la lista
+    // Agregar al inicio de la lista
+    _reports.insert(0, newReport);
 
-    print('✅ Reporte agregado al historial: ${newReport['title']}');
-    print('📊 Total de reportes en memoria después: ${_reports.length}');
+    print('✅ Reporte agregado en memoria: ${newReport['title']}');
+    print('📋 ID del reporte: $reportId');
+    print('📊 Total de reportes en memoria: ${_reports.length}');
     
-    // Mostrar todos los reportes para debugging
-    for (int i = 0; i < _reports.length; i++) {
-      print('📋 Reporte $i: ${_reports[i]['title']} - ${_reports[i]['result']}');
+    // Guardar en almacenamiento persistente inmediatamente
+    try {
+      await _saveReportsToStorage();
+      print('✅ Reporte guardado exitosamente en almacenamiento persistente');
+    } catch (e) {
+      print('❌ Error guardando reporte: $e');
+      // Intentar guardar de nuevo después de un breve delay
+      try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        await _saveReportsToStorage();
+        print('✅ Reporte guardado en segundo intento');
+      } catch (e2) {
+        print('❌ Error crítico: No se pudo guardar el reporte después de 2 intentos: $e2');
+        // El reporte está en memoria, pero no se guardó permanentemente
+        // Esto puede causar pérdida de datos si se reinicia la app
+      }
     }
-    
-    // Guardar en almacenamiento persistente
-    await _saveReportsToStorage();
     
     print('✅ Proceso de agregado completado');
   }
