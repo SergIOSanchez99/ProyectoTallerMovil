@@ -54,33 +54,47 @@ class _RegisterPageState extends State<RegisterPage> {
         password: _passwordController.text,
       );
 
+      print('📋 Respuesta del registro: success=${response.success}, message=${response.message}');
+      
       if (response.success && response.data != null) {
+        print('✅ Registro exitoso, navegando al login');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response.message ?? 'Usuario registrado exitosamente'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
         
-        // Navegar al login
-        Navigator.pushReplacementNamed(context, AppRoutes.login);
+        // Navegar al login después de un breve delay
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (mounted) {
+          Navigator.pushReplacementNamed(context, AppRoutes.login);
+        }
       } else {
+        print('❌ Registro fallido: ${response.message}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response.message ?? 'Error al registrar usuario'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Excepción en registro: $e');
+      print('❌ Stack trace: $stackTrace');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error: $e'),
+          content: Text('Error inesperado: ${e.toString()}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
         ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

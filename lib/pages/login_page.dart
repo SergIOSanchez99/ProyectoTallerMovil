@@ -8,6 +8,7 @@ import '../widgets/custom_card.dart';
 import '../utils/validators.dart';
 import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -162,15 +163,61 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = true;
     });
 
-    // Simular delay de autenticación
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      final authService = AuthService();
+      final response = await authService.login(
+        _usuarioController.text.trim(),
+        _contrasenaController.text,
+      );
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    // Navegar a la pantalla principal (Home)
-    Navigator.pushReplacementNamed(context, AppRoutes.home);
+      if (response.success && response.data != null) {
+        // Login exitoso
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? 'Login exitoso'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          
+          // Navegar a la pantalla principal después de un breve delay
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (mounted) {
+            Navigator.pushReplacementNamed(context, AppRoutes.home);
+          }
+        }
+      } else {
+        // Login fallido - mostrar mensaje de error del backend
+        if (mounted) {
+          final errorMessage = response.message ?? 'Las credenciales ingresadas no existen. Verifica tu email y contraseña.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Error de conexión u otro error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error de conexión: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _handleForgotPassword() {

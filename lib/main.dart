@@ -14,7 +14,7 @@ void main() async {
   
   // Inicializar servicios
   await ReportService.initialize();
-  await AuthService.initialize();
+  // AuthService ya no requiere inicialización - se conecta directamente al backend
   
   runApp(const MyApp());
 }
