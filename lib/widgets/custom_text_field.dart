@@ -12,6 +12,7 @@ class CustomTextField extends StatefulWidget {
   final Widget? prefixIcon;
   final Widget? suffixIcon;
   final bool enabled;
+  final bool readOnly;
   final int? maxLines;
   final int? maxLength;
   final VoidCallback? onTap;
@@ -29,6 +30,7 @@ class CustomTextField extends StatefulWidget {
     this.prefixIcon,
     this.suffixIcon,
     this.enabled = true,
+    this.readOnly = false,
     this.maxLines = 1,
     this.maxLength,
     this.onTap,
@@ -74,6 +76,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             keyboardType: widget.keyboardType,
             validator: widget.validator,
             enabled: widget.enabled,
+            readOnly: widget.readOnly,
             maxLines: widget.maxLines,
             maxLength: widget.maxLength,
             onTap: widget.onTap,
