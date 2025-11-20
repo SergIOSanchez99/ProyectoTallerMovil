@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:typed_data';
 import '../services/ai_service.dart';
 import '../services/report_service.dart';
+import '../services/image_storage_service.dart';
 import '../routes/app_routes.dart';
 
 /// Represents the data for a colonoscopy analysis.
@@ -83,15 +84,73 @@ class ColonoscopyAnalysisData extends ChangeNotifier {
     _isGeneratingReport = true;
     notifyListeners();
 
-    final bool success = await handleGenerateReport();
+    try {
+      // Verificar que haya un análisis disponible
+      if (!_hasAnalysis || _analysis == null) {
+        print('⚠️ No hay análisis disponible para generar reporte');
+        _isGeneratingReport = false;
+        notifyListeners();
+        return false;
+      }
 
-    // Nota: El reporte ya se guarda automáticamente cuando se completa el análisis
-    // en _updateAnalysisResults, así que no es necesario guardarlo aquí nuevamente
-    // a menos que queramos crear un reporte adicional
-
-    _isGeneratingReport = false;
-    notifyListeners();
-    return success;
+      // Obtener datos del análisis
+      final result = _analysis!.result;
+      final stage = _analysis!.currentStage;
+      
+      // Buscar confidence y riskLevel del historial más reciente si está disponible
+      double confidence = 0.85; // Valor por defecto
+      String riskLevel = _getRiskLevel(result);
+      
+      // Intentar obtener valores reales del historial
+      try {
+        await ReportService.loadReports();
+        final reports = ReportService.getAllReports();
+        if (reports.isNotEmpty) {
+          // Buscar el reporte más reciente con el mismo resultado
+          final sortedReports = List<Map<String, dynamic>>.from(reports)
+            ..sort((a, b) {
+              final dateA = DateTime.tryParse(a['createdAt'] ?? '') ?? DateTime(1970);
+              final dateB = DateTime.tryParse(b['createdAt'] ?? '') ?? DateTime(1970);
+              return dateB.compareTo(dateA);
+            });
+          
+          for (var report in sortedReports) {
+            if (report['result'] == result) {
+              confidence = report['confidence'] != null 
+                  ? (report['confidence'] is double 
+                      ? report['confidence'] 
+                      : double.tryParse(report['confidence'].toString()) ?? 0.85)
+                  : 0.85;
+              riskLevel = report['riskLevel'] ?? report['risk_level'] ?? riskLevel;
+              break;
+            }
+          }
+        }
+      } catch (e) {
+        print('⚠️ No se pudo obtener datos del historial: $e');
+      }
+      
+      // Guardar el reporte en el historial
+      print('💾 Guardando reporte en el historial...');
+      await ReportService.addReport(
+        result: result,
+        stage: stage,
+        confidence: confidence,
+        riskLevel: riskLevel,
+        // patientId se asociará después cuando se registre un paciente
+      );
+      
+      print('✅ Reporte guardado exitosamente en el historial');
+      
+      _isGeneratingReport = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('❌ Error generando reporte: $e');
+      _isGeneratingReport = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   /// Determinar nivel de riesgo basado en el resultado
@@ -123,6 +182,7 @@ class UploadImagePage extends StatefulWidget {
 class _UploadImagePageState extends State<UploadImagePage> {
   String? _selectedImageUrl;
   Uint8List? _selectedImageBytes;
+  String? _savedImagePath; // Ruta de la imagen guardada
   final AIService _aiService = AIService();
   final ImagePicker _picker = ImagePicker();
   bool _isAnalyzing = false;
@@ -467,6 +527,30 @@ class _UploadImagePageState extends State<UploadImagePage> {
     print('🔍 Actualizando resultados del análisis...');
     print('📊 Datos recibidos: $data');
     
+    // Guardar la imagen de forma persistente antes de actualizar el análisis
+    String? savedImagePath;
+    if (_selectedImageBytes != null) {
+      try {
+        final result = data['result'] ?? 'Análisis completado';
+        savedImagePath = await ImageStorageService.saveImage(
+          _selectedImageBytes!,
+          fileName: ImageStorageService.generateImageFileName(result: result),
+        );
+        
+        // Guardar la ruta relativa para almacenar en la base de datos
+        final relativePath = await ImageStorageService.getRelativePath(savedImagePath);
+        setState(() {
+          _savedImagePath = relativePath;
+        });
+        
+        print('✅ Imagen guardada en: $savedImagePath');
+        print('📁 Ruta relativa: $relativePath');
+      } catch (e) {
+        print('⚠️ Error guardando imagen: $e');
+        // Continuar aunque falle el guardado de imagen
+      }
+    }
+    
     // Actualizar los resultados en el provider
     final provider = Provider.of<ColonoscopyAnalysisData>(context, listen: false);
     
@@ -486,27 +570,13 @@ class _UploadImagePageState extends State<UploadImagePage> {
     
     print('✅ Análisis actualizado en el provider');
     
-    // Guardar automáticamente el reporte en el historial
-    try {
-      print('💾 Guardando reporte automáticamente en el historial...');
-      await ReportService.addReport(
-        result: result,
-        stage: stage,
-        confidence: confidence,
-        riskLevel: riskLevel,
-      );
-      print('✅ Reporte guardado automáticamente en el historial');
-    } catch (e) {
-      print('❌ Error guardando reporte automáticamente: $e');
-    }
-    
-    // Mostrar mensaje de éxito
+    // Mostrar mensaje de éxito (sin guardar automáticamente)
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Análisis completado: $result. Reporte guardado en el historial.'),
+          content: Text('Análisis completado: $result. Imagen guardada. Puede generar el reporte haciendo clic en "Generar Reporte".'),
           backgroundColor: const Color(0xFF191970),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
