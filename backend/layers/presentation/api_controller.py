@@ -21,6 +21,7 @@ except ImportError:
 from ..business.services.analysis_service import AnalysisService
 from ..business.services.health_service import HealthService
 from ..business.services.auth_service import AuthService
+from ..business.services.patient_service import PatientService
 from ..infrastructure.exceptions.api_exceptions import APIException, ValidationError
 
 
@@ -37,6 +38,7 @@ class APIController:
         self.analysis_service = AnalysisService()
         self.health_service = HealthService()
         self.auth_service = AuthService()
+        self.patient_service = PatientService()
 
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -322,6 +324,219 @@ class APIController:
             except Exception as e:
                 self.logger.exception("Error obteniendo usuarios")
                 return self._error_response(f"Error al obtener usuarios: {str(e)}", 500)
+        
+        # ---------------------------------------------------------------------
+        # ENDPOINTS DE PACIENTES
+        # ---------------------------------------------------------------------
+        
+        @self.app.route('/patients', methods=['GET', 'OPTIONS'])
+        def get_patients():
+            """Endpoint para obtener todos los pacientes"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                return response, 200
+            
+            self.logger.info("=== GET /patients ===")
+            
+            try:
+                active_only = request.args.get('active_only', 'true').lower() == 'true'
+                search = request.args.get('search', None)
+                
+                result = self.patient_service.get_all_patients(
+                    active_only=active_only,
+                    search=search
+                )
+                
+                if result.get('success'):
+                    response = jsonify(result)
+                    response.headers['Access-Control-Allow-Origin'] = '*'
+                    response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                    return response, 200
+                else:
+                    response = jsonify(result)
+                    response.headers['Access-Control-Allow-Origin'] = '*'
+                    return response, 500
+                    
+            except Exception as e:
+                self.logger.exception("Error obteniendo pacientes")
+                return self._error_response(f"Error al obtener pacientes: {str(e)}", 500)
+        
+        @self.app.route('/patients/<int:patient_id>', methods=['GET', 'OPTIONS'])
+        def get_patient(patient_id):
+            """Endpoint para obtener un paciente por ID"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                return response, 200
+            
+            self.logger.info(f"=== GET /patients/{patient_id} ===")
+            
+            try:
+                result = self.patient_service.get_patient_by_id(patient_id)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 404
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error obteniendo paciente")
+                return self._error_response(f"Error al obtener paciente: {str(e)}", 500)
+        
+        @self.app.route('/patients', methods=['POST', 'OPTIONS'])
+        def create_patient():
+            """Endpoint para crear un nuevo paciente"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                return response, 200
+            
+            self.logger.info("=== POST /patients ===")
+            
+            try:
+                data = request.get_json()
+                
+                if not data:
+                    return self._error_response("Datos no proporcionados", 400)
+                
+                # Obtener edad y convertir a int si existe
+                age = None
+                if 'age' in data and data['age'] is not None:
+                    try:
+                        age = int(data['age'])
+                    except (ValueError, TypeError):
+                        age = None
+                elif 'edad' in data and data['edad'] is not None:
+                    try:
+                        age = int(data['edad'])
+                    except (ValueError, TypeError):
+                        age = None
+                
+                result = self.patient_service.create_patient(
+                    full_name=data.get('full_name') or data.get('nombre_completo') or data.get('fullName'),
+                    identification=data.get('identification') or data.get('identificacion'),
+                    age=age
+                )
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 201 if result.get('success') else 400
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error creando paciente")
+                return self._error_response(f"Error al crear paciente: {str(e)}", 500)
+        
+        @self.app.route('/patients/<int:patient_id>', methods=['PUT', 'OPTIONS'])
+        def update_patient(patient_id):
+            """Endpoint para actualizar un paciente"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'PUT, OPTIONS'
+                return response, 200
+            
+            self.logger.info(f"=== PUT /patients/{patient_id} ===")
+            
+            try:
+                data = request.get_json()
+                
+                if not data:
+                    return self._error_response("Datos no proporcionados", 400)
+                
+                result = self.patient_service.update_patient(patient_id, **data)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'PUT, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 400
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error actualizando paciente")
+                return self._error_response(f"Error al actualizar paciente: {str(e)}", 500)
+        
+        @self.app.route('/patients/<int:patient_id>', methods=['DELETE', 'OPTIONS'])
+        def delete_patient(patient_id):
+            """Endpoint para eliminar un paciente"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'DELETE, OPTIONS'
+                return response, 200
+            
+            self.logger.info(f"=== DELETE /patients/{patient_id} ===")
+            
+            try:
+                result = self.patient_service.delete_patient(patient_id)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 404
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error eliminando paciente")
+                return self._error_response(f"Error al eliminar paciente: {str(e)}", 500)
+        
+        @self.app.route('/patients/search', methods=['GET', 'OPTIONS'])
+        def search_patient():
+            """Endpoint para buscar paciente por identificación"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                return response, 200
+            
+            self.logger.info("=== GET /patients/search ===")
+            
+            try:
+                identification = request.args.get('identification') or request.args.get('identificacion')
+                
+                if not identification:
+                    return self._error_response("Parámetro 'identification' requerido", 400)
+                
+                result = self.patient_service.get_patient_by_identification(identification)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 404
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error buscando paciente")
+                return self._error_response(f"Error al buscar paciente: {str(e)}", 500)
         
         # ---------------------------------------------------------------------
         # ENDPOINT /predict (Optimizado)
