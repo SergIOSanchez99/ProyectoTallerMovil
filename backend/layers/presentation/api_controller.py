@@ -22,6 +22,7 @@ from ..business.services.analysis_service import AnalysisService
 from ..business.services.health_service import HealthService
 from ..business.services.auth_service import AuthService
 from ..business.services.patient_service import PatientService
+from ..business.services.study_service import StudyService
 from ..infrastructure.exceptions.api_exceptions import APIException, ValidationError
 
 
@@ -39,6 +40,7 @@ class APIController:
         self.health_service = HealthService()
         self.auth_service = AuthService()
         self.patient_service = PatientService()
+        self.study_service = StudyService()
 
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -537,6 +539,194 @@ class APIController:
             except Exception as e:
                 self.logger.exception("Error buscando paciente")
                 return self._error_response(f"Error al buscar paciente: {str(e)}", 500)
+        
+        # ---------------------------------------------------------------------
+        # ENDPOINTS DE ESTUDIOS/REPORTES
+        # ---------------------------------------------------------------------
+        @self.app.route('/studies', methods=['POST', 'OPTIONS'])
+        def create_study():
+            """Endpoint para crear un nuevo estudio/reporte"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                return response, 200
+            
+            self.logger.info("=== POST /studies ===")
+            
+            try:
+                data = request.get_json()
+                
+                if not data:
+                    return self._error_response("Datos no proporcionados", 400)
+                
+                # Obtener confidence y convertir a float si existe
+                confidence = None
+                if 'confidence' in data and data['confidence'] is not None:
+                    try:
+                        confidence = float(data['confidence'])
+                    except (ValueError, TypeError):
+                        confidence = None
+                
+                # Obtener patient_id y user_id si existen
+                patient_id = data.get('patient_id') or data.get('patientId')
+                user_id = data.get('user_id') or data.get('userId')
+                
+                if patient_id:
+                    try:
+                        patient_id = int(patient_id)
+                    except (ValueError, TypeError):
+                        patient_id = None
+                
+                if user_id:
+                    try:
+                        user_id = int(user_id)
+                    except (ValueError, TypeError):
+                        user_id = None
+                
+                result = self.study_service.create_study(
+                    result=data.get('result', ''),
+                    stage=data.get('stage'),
+                    confidence=confidence,
+                    risk_level=data.get('risk_level') or data.get('riskLevel'),
+                    patient_id=patient_id,
+                    user_id=user_id,
+                    image_path=data.get('image_path') or data.get('imagePath'),
+                    study_date=data.get('study_date') or data.get('studyDate'),
+                    doctor_name=data.get('doctor_name') or data.get('doctorName'),
+                    observations=data.get('observations')
+                )
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 201 if result.get('success') else 400
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error creando estudio")
+                return self._error_response(f"Error al crear estudio: {str(e)}", 500)
+        
+        @self.app.route('/studies', methods=['GET', 'OPTIONS'])
+        def get_all_studies():
+            """Endpoint para obtener todos los estudios"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                return response, 200
+            
+            self.logger.info("=== GET /studies ===")
+            
+            try:
+                user_id = request.args.get('user_id') or request.args.get('userId')
+                patient_id = request.args.get('patient_id') or request.args.get('patientId')
+                limit = request.args.get('limit')
+                offset = request.args.get('offset')
+                
+                if user_id:
+                    try:
+                        user_id = int(user_id)
+                    except (ValueError, TypeError):
+                        user_id = None
+                
+                if patient_id:
+                    try:
+                        patient_id = int(patient_id)
+                    except (ValueError, TypeError):
+                        patient_id = None
+                
+                if limit:
+                    try:
+                        limit = int(limit)
+                    except (ValueError, TypeError):
+                        limit = None
+                
+                if offset:
+                    try:
+                        offset = int(offset)
+                    except (ValueError, TypeError):
+                        offset = None
+                
+                result = self.study_service.get_all_studies(
+                    user_id=user_id,
+                    patient_id=patient_id,
+                    limit=limit,
+                    offset=offset
+                )
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                return response, 200
+                
+            except Exception as e:
+                self.logger.exception("Error obteniendo estudios")
+                return self._error_response(f"Error al obtener estudios: {str(e)}", 500)
+        
+        @self.app.route('/studies/<int:study_id>', methods=['GET', 'OPTIONS'])
+        def get_study(study_id):
+            """Endpoint para obtener un estudio por ID"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                return response, 200
+            
+            self.logger.info(f"=== GET /studies/{study_id} ===")
+            
+            try:
+                result = self.study_service.get_study(study_id)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 404
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error obteniendo estudio")
+                return self._error_response(f"Error al obtener estudio: {str(e)}", 500)
+        
+        @self.app.route('/studies/<int:study_id>', methods=['DELETE', 'OPTIONS'])
+        def delete_study(study_id):
+            """Endpoint para eliminar un estudio"""
+            
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'DELETE, OPTIONS'
+                return response, 200
+            
+            self.logger.info(f"=== DELETE /studies/{study_id} ===")
+            
+            try:
+                result = self.study_service.delete_study(study_id)
+                
+                response = jsonify(result)
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Methods'] = 'DELETE, OPTIONS'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                
+                status_code = 200 if result.get('success') else 404
+                return response, status_code
+                
+            except Exception as e:
+                self.logger.exception("Error eliminando estudio")
+                return self._error_response(f"Error al eliminar estudio: {str(e)}", 500)
         
         # ---------------------------------------------------------------------
         # ENDPOINT /predict (Optimizado)
