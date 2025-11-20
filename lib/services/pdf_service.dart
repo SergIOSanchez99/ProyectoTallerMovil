@@ -39,6 +39,28 @@ class PDFService {
       }
       
       print('📄 Datos del reporte recibidos: ${reportData.keys.toList()}');
+      print('📊 Contenido del reporte:');
+      print('   - result: ${reportData['result']}');
+      print('   - stage: ${reportData['stage']}');
+      print('   - confidence: ${reportData['confidence']}');
+      print('   - riskLevel: ${reportData['riskLevel'] ?? reportData['risk_level']}');
+      
+      // Normalizar datos antes de generar el PDF para asegurar compatibilidad
+      if (reportData['risk_level'] != null && reportData['riskLevel'] == null) {
+        reportData['riskLevel'] = reportData['risk_level'];
+      }
+      
+      // Asegurar que los campos críticos estén presentes
+      reportData['result'] = reportData['result'] ?? reportData['Resultado'] ?? reportData['diagnosis'] ?? 'No disponible';
+      reportData['stage'] = reportData['stage'] ?? reportData['Stage'] ?? reportData['currentStage'] ?? 'N/A';
+      reportData['confidence'] = reportData['confidence'] ?? reportData['Confidence'] ?? 0.0;
+      reportData['riskLevel'] = reportData['riskLevel'] ?? reportData['RiskLevel'] ?? reportData['risk_level'] ?? 'N/A';
+      
+      print('📊 Datos normalizados para PDF:');
+      print('   - result: ${reportData['result']}');
+      print('   - stage: ${reportData['stage']}');
+      print('   - confidence: ${reportData['confidence']}');
+      print('   - riskLevel: ${reportData['riskLevel']}');
       
       // Crear el documento PDF
       final pdf = pw.Document();
@@ -76,6 +98,17 @@ class PDFService {
           );
           break;
         case 'comparativo':
+          // Para comparativo, necesitamos generar el análisis comparativo
+          if (previousReport != null) {
+            // Generar análisis comparativo usando el servicio médico
+            try {
+              // Importar dinámicamente el servicio (por ahora lo haremos inline en el método)
+              final comparativeAnalysis = _generateComparativeAnalysis(reportData, previousReport);
+              reportData['comparativeAnalysis'] = comparativeAnalysis;
+            } catch (e) {
+              print('Error generando análisis comparativo: $e');
+            }
+          }
           reportContent = _buildComparativeReportContent(
             reportData,
             font,
@@ -391,7 +424,7 @@ class PDFService {
           if (patientName != null)
             _buildInfoRow('Nombre:', patientName, font, fontBold),
           if (patientId != null)
-            _buildInfoRow('ID del Paciente:', patientId, font, fontBold),
+            _buildInfoRow('DNI:', patientId, font, fontBold),
           if (patientAge != null)
             _buildInfoRow('Edad:', '${patientAge} años', font, fontBold),
         ],
@@ -426,11 +459,13 @@ class PDFService {
             ),
           ),
           pw.SizedBox(height: 15),
-          _buildInfoRow('ID del Reporte:', _getSafeString(reportData['id']), font, fontBold),
-          _buildInfoRow('Fecha:', studyDate ?? _getSafeString(reportData['date']), font, fontBold),
+          _buildInfoRow('ID del Reporte:', _getSafeString(reportData['id'] ?? reportData['backendId']), font, fontBold),
+          _buildInfoRow('Fecha del Estudio:', studyDate ?? _getSafeString(reportData['date'] ?? reportData['study_date']), font, fontBold),
           _buildInfoRow('Estado:', _getSafeString(reportData['status']), font, fontBold),
-          if (doctorName != null)
+          if (doctorName != null && doctorName.isNotEmpty)
             _buildInfoRow('Médico Responsable:', doctorName, font, fontBold),
+          if (reportData['doctor_name'] != null && doctorName == null)
+            _buildInfoRow('Médico Responsable:', _getSafeString(reportData['doctor_name']), font, fontBold),
           if (reportData['title'] != null)
             _buildInfoRow('Título:', _getSafeString(reportData['title']), font, fontBold),
         ],
@@ -458,14 +493,30 @@ class PDFService {
               font: fontBold,
             ),
           ),
-          pw.SizedBox(height: 15),
-          _buildInfoRow('Resultado:', _getSafeString(reportData['result'] ?? reportData['Resultado']), font, fontBold),
-          if (reportData['stage'] != null || reportData['Stage'] != null)
-            _buildInfoRow('Etapa:', _getSafeString(reportData['stage'] ?? reportData['Stage']), font, fontBold),
-          if (reportData['confidence'] != null || reportData['Confidence'] != null)
-            _buildInfoRow('Confianza:', '${(_getConfidenceValue(reportData['confidence'] ?? reportData['Confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%', font, fontBold),
-          if (reportData['riskLevel'] != null || reportData['RiskLevel'] != null || reportData['risk_level'] != null)
-            _buildInfoRow('Nivel de Riesgo:', _getSafeString(reportData['riskLevel'] ?? reportData['RiskLevel'] ?? reportData['risk_level']), font, fontBold),
+              pw.SizedBox(height: 15),
+              // Siempre mostrar el resultado (es el campo más importante)
+              _buildInfoRow('Resultado:', _getSafeString(
+                reportData['result'] ?? 
+                reportData['Resultado'] ?? 
+                reportData['diagnosis'] ?? 
+                'No disponible'
+              ), font, fontBold),
+              // Siempre mostrar etapa (puede ser 'N/A' si no está disponible)
+              _buildInfoRow('Etapa:', _getSafeString(
+                reportData['stage'] ?? 
+                reportData['Stage'] ?? 
+                reportData['currentStage'] ??
+                'N/A'
+              ), font, fontBold),
+              // Siempre mostrar confianza (mostrar 0% si no está disponible)
+              _buildInfoRow('Confianza del Análisis:', '${(_getConfidenceValue(reportData['confidence'] ?? reportData['Confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%', font, fontBold),
+              // Siempre mostrar nivel de riesgo (mostrar 'N/A' si no está disponible)
+              _buildInfoRow('Nivel de Riesgo:', _getSafeString(
+                reportData['riskLevel'] ?? 
+                reportData['RiskLevel'] ?? 
+                reportData['risk_level'] ??
+                'N/A'
+              ), font, fontBold),
         ],
       ),
     );
@@ -473,65 +524,243 @@ class PDFService {
 
   /// Construye detalles básicos del análisis (solo información esencial)
   static pw.Widget _buildBasicAnalysisDetails(Map<String, dynamic> reportData, pw.Font font, pw.Font fontBold) {
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Resultados del Análisis',
-            style: pw.TextStyle(
-              fontSize: 18,
-              color: PdfColors.blue800,
-              font: fontBold,
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(20),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300),
+            borderRadius: pw.BorderRadius.circular(10),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Resultados del Análisis',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  color: PdfColors.blue800,
+                  font: fontBold,
+                ),
+              ),
+              pw.SizedBox(height: 15),
+              // Siempre mostrar el resultado (es el campo más importante)
+              _buildInfoRow('Resultado:', _getSafeString(
+                reportData['result'] ?? 
+                reportData['Resultado'] ?? 
+                reportData['diagnosis'] ?? 
+                'No disponible'
+              ), font, fontBold),
+              // Siempre mostrar etapa (puede ser 'N/A' si no está disponible)
+              _buildInfoRow('Etapa:', _getSafeString(
+                reportData['stage'] ?? 
+                reportData['Stage'] ?? 
+                reportData['currentStage'] ??
+                'N/A'
+              ), font, fontBold),
+              // Siempre mostrar confianza (mostrar 0% si no está disponible)
+              _buildInfoRow('Confianza del Análisis:', '${(_getConfidenceValue(reportData['confidence'] ?? reportData['Confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%', font, fontBold),
+              // Siempre mostrar nivel de riesgo (mostrar 'N/A' si no está disponible)
+              _buildInfoRow('Nivel de Riesgo:', _getSafeString(
+                reportData['riskLevel'] ?? 
+                reportData['RiskLevel'] ?? 
+                reportData['risk_level'] ??
+                'N/A'
+              ), font, fontBold),
+            ],
+          ),
+        ),
+        // Recomendaciones básicas si están disponibles
+        if (reportData['recommendation'] != null) ...[
+          pw.SizedBox(height: 15),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.orange300),
+              borderRadius: pw.BorderRadius.circular(10),
+              color: PdfColors.orange50,
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Recomendaciones',
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    color: PdfColors.orange900,
+                    font: fontBold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  _getSafeString(reportData['recommendation']),
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    font: font,
+                  ),
+                ),
+              ],
             ),
           ),
-          pw.SizedBox(height: 15),
-          _buildInfoRow('Resultado:', _getSafeString(reportData['result'] ?? reportData['Resultado']), font, fontBold),
-          if (reportData['riskLevel'] != null || reportData['RiskLevel'] != null || reportData['risk_level'] != null)
-            _buildInfoRow('Nivel de Riesgo:', _getSafeString(reportData['riskLevel'] ?? reportData['RiskLevel'] ?? reportData['risk_level']), font, fontBold),
         ],
-      ),
+      ],
     );
   }
 
   /// Construye detalles detallados del análisis (con toda la información)
   static pw.Widget _buildDetailedAnalysisDetails(Map<String, dynamic> reportData, pw.Font font, pw.Font fontBold) {
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Resultados Detallados del Análisis',
-            style: pw.TextStyle(
-              fontSize: 18,
-              color: PdfColors.blue800,
-              font: fontBold,
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Resultados del análisis
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(20),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300),
+            borderRadius: pw.BorderRadius.circular(10),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Resultados del Análisis',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  color: PdfColors.blue800,
+                  font: fontBold,
+                ),
+              ),
+              pw.SizedBox(height: 15),
+              // Siempre mostrar el resultado (es el campo más importante)
+              _buildInfoRow('Resultado:', _getSafeString(
+                reportData['result'] ?? 
+                reportData['Resultado'] ?? 
+                reportData['diagnosis'] ?? 
+                'No disponible'
+              ), font, fontBold),
+              // Siempre mostrar etapa (puede ser 'N/A' si no está disponible)
+              _buildInfoRow('Etapa:', _getSafeString(
+                reportData['stage'] ?? 
+                reportData['Stage'] ?? 
+                reportData['currentStage'] ??
+                'N/A'
+              ), font, fontBold),
+              // Siempre mostrar confianza (mostrar 0% si no está disponible)
+              _buildInfoRow('Confianza del Análisis:', '${(_getConfidenceValue(reportData['confidence'] ?? reportData['Confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%', font, fontBold),
+              // Siempre mostrar nivel de riesgo (mostrar 'N/A' si no está disponible)
+              _buildInfoRow('Nivel de Riesgo:', _getSafeString(
+                reportData['riskLevel'] ?? 
+                reportData['RiskLevel'] ?? 
+                reportData['risk_level'] ??
+                'N/A'
+              ), font, fontBold),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 15),
+        // Interpretación clínica
+        if (reportData['clinicalInterpretation'] != null)
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.blue300),
+              borderRadius: pw.BorderRadius.circular(10),
+              color: PdfColors.blue50,
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Interpretación Clínica',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    color: PdfColors.blue800,
+                    font: fontBold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  _getSafeString(reportData['clinicalInterpretation']),
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    font: font,
+                  ),
+                ),
+              ],
             ),
           ),
-          pw.SizedBox(height: 15),
-          _buildInfoRow('Resultado:', _getSafeString(reportData['result'] ?? reportData['Resultado']), font, fontBold),
-          if (reportData['stage'] != null || reportData['Stage'] != null)
-            _buildInfoRow('Etapa:', _getSafeString(reportData['stage'] ?? reportData['Stage']), font, fontBold),
-          if (reportData['confidence'] != null || reportData['Confidence'] != null)
-            _buildInfoRow('Confianza:', '${(_getConfidenceValue(reportData['confidence'] ?? reportData['Confidence'] ?? 0.0) * 100).toStringAsFixed(1)}%', font, fontBold),
-          if (reportData['riskLevel'] != null || reportData['RiskLevel'] != null || reportData['risk_level'] != null)
-            _buildInfoRow('Nivel de Riesgo:', _getSafeString(reportData['riskLevel'] ?? reportData['RiskLevel'] ?? reportData['risk_level']), font, fontBold),
-          if (reportData['recommendation'] != null)
-            _buildInfoRow('Recomendación:', _getSafeString(reportData['recommendation']), font, fontBold),
-        ],
-      ),
+        pw.SizedBox(height: 15),
+        // Recomendaciones
+        if (reportData['recommendation'] != null)
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.orange300),
+              borderRadius: pw.BorderRadius.circular(10),
+              color: PdfColors.orange50,
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Recomendaciones Médicas',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    color: PdfColors.orange900,
+                    font: fontBold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  _getSafeString(reportData['recommendation']),
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    font: font,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        pw.SizedBox(height: 15),
+        // Plan de seguimiento
+        if (reportData['followUpPlan'] != null)
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.green300),
+              borderRadius: pw.BorderRadius.circular(10),
+              color: PdfColors.green50,
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Plan de Seguimiento',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    color: PdfColors.green900,
+                    font: fontBold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  _getSafeString(reportData['followUpPlan']),
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    font: font,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -542,65 +771,215 @@ class PDFService {
     pw.Font font,
     pw.Font fontBold,
   ) {
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.all(20),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300),
-        borderRadius: pw.BorderRadius.circular(10),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Comparación de Análisis',
-            style: pw.TextStyle(
-              fontSize: 18,
-              color: PdfColors.blue800,
-              font: fontBold,
+    // Generar análisis comparativo usando el servicio médico
+    String? comparativeAnalysis;
+    try {
+      // Importar el servicio de recomendaciones médicas
+      // Nota: Esto requiere importar el servicio, pero por ahora lo haremos inline
+      comparativeAnalysis = _generateComparativeAnalysis(currentReport, previousReport);
+    } catch (e) {
+      comparativeAnalysis = null;
+    }
+    
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Tabla comparativa lado a lado
+        pw.Container(
+          width: double.infinity,
+          padding: const pw.EdgeInsets.all(20),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey300),
+            borderRadius: pw.BorderRadius.circular(10),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                'Comparación de Análisis',
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  color: PdfColors.blue800,
+                  font: fontBold,
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              // Tabla comparativa
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Análisis Actual
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(15),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.blue300),
+                        borderRadius: pw.BorderRadius.circular(8),
+                        color: PdfColors.blue50,
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'Análisis Actual',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              color: PdfColors.blue800,
+                              font: fontBold,
+                            ),
+                          ),
+                          pw.SizedBox(height: 10),
+                          _buildInfoRow('Fecha:', _getSafeString(currentReport['date']), font, fontBold),
+                          _buildInfoRow('Resultado:', _getSafeString(currentReport['result'] ?? currentReport['Resultado']), font, fontBold),
+                          if (currentReport['stage'] != null || currentReport['Stage'] != null)
+                            _buildInfoRow('Etapa:', _getSafeString(currentReport['stage'] ?? currentReport['Stage']), font, fontBold),
+                          if (currentReport['confidence'] != null)
+                            _buildInfoRow('Confianza:', '${(_getConfidenceValue(currentReport['confidence']) * 100).toStringAsFixed(1)}%', font, fontBold),
+                          if (currentReport['riskLevel'] != null || currentReport['risk_level'] != null)
+                            _buildInfoRow('Riesgo:', _getSafeString(currentReport['riskLevel'] ?? currentReport['risk_level']), font, fontBold),
+                        ],
+                      ),
+                    ),
+                  ),
+                  pw.SizedBox(width: 10),
+                  // Análisis Previo
+                  pw.Expanded(
+                    child: pw.Container(
+                      padding: const pw.EdgeInsets.all(15),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(color: PdfColors.grey400),
+                        borderRadius: pw.BorderRadius.circular(8),
+                        color: PdfColors.grey100,
+                      ),
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            'Análisis Previo',
+                            style: pw.TextStyle(
+                              fontSize: 14,
+                              color: PdfColors.grey800,
+                              font: fontBold,
+                            ),
+                          ),
+                          pw.SizedBox(height: 10),
+                          _buildInfoRow('Fecha:', _getSafeString(previousReport['date']), font, fontBold),
+                          _buildInfoRow('Resultado:', _getSafeString(previousReport['result'] ?? previousReport['Resultado']), font, fontBold),
+                          if (previousReport['stage'] != null || previousReport['Stage'] != null)
+                            _buildInfoRow('Etapa:', _getSafeString(previousReport['stage'] ?? previousReport['Stage']), font, fontBold),
+                          if (previousReport['confidence'] != null)
+                            _buildInfoRow('Confianza:', '${(_getConfidenceValue(previousReport['confidence']) * 100).toStringAsFixed(1)}%', font, fontBold),
+                          if (previousReport['riskLevel'] != null || previousReport['risk_level'] != null)
+                            _buildInfoRow('Riesgo:', _getSafeString(previousReport['riskLevel'] ?? previousReport['risk_level']), font, fontBold),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // Análisis comparativo detallado
+        if (comparativeAnalysis != null && comparativeAnalysis.isNotEmpty) ...[
+          pw.SizedBox(height: 15),
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.purple300),
+              borderRadius: pw.BorderRadius.circular(10),
+              color: PdfColors.purple50,
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  'Análisis de Evolución',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    color: PdfColors.purple900,
+                    font: fontBold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  comparativeAnalysis,
+                  style: pw.TextStyle(
+                    fontSize: 11,
+                    font: font,
+                  ),
+                ),
+              ],
             ),
           ),
-          pw.SizedBox(height: 20),
-          // Reporte actual
-          pw.Text(
-            'Análisis Actual',
-            style: pw.TextStyle(
-              fontSize: 16,
-              color: PdfColors.blue700,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          _buildInfoRow('Fecha:', _getSafeString(currentReport['date']), font, fontBold),
-          _buildInfoRow('Resultado:', _getSafeString(currentReport['result'] ?? currentReport['Resultado']), font, fontBold),
-          if (currentReport['stage'] != null)
-            _buildInfoRow('Etapa:', _getSafeString(currentReport['stage']), font, fontBold),
-          if (currentReport['confidence'] != null)
-            _buildInfoRow('Confianza:', '${(_getConfidenceValue(currentReport['confidence']) * 100).toStringAsFixed(1)}%', font, fontBold),
-          if (currentReport['riskLevel'] != null)
-            _buildInfoRow('Nivel de Riesgo:', _getSafeString(currentReport['riskLevel']), font, fontBold),
-          pw.SizedBox(height: 20),
-          // Reporte previo
-          pw.Text(
-            'Análisis Previo',
-            style: pw.TextStyle(
-              fontSize: 16,
-              color: PdfColors.blue700,
-              font: fontBold,
-            ),
-          ),
-          pw.SizedBox(height: 10),
-          _buildInfoRow('Fecha:', _getSafeString(previousReport['date']), font, fontBold),
-          _buildInfoRow('Resultado:', _getSafeString(previousReport['result'] ?? previousReport['Resultado']), font, fontBold),
-          if (previousReport['stage'] != null)
-            _buildInfoRow('Etapa:', _getSafeString(previousReport['stage']), font, fontBold),
-          if (previousReport['confidence'] != null)
-            _buildInfoRow('Confianza:', '${(_getConfidenceValue(previousReport['confidence']) * 100).toStringAsFixed(1)}%', font, fontBold),
-          if (previousReport['riskLevel'] != null)
-            _buildInfoRow('Nivel de Riesgo:', _getSafeString(previousReport['riskLevel']), font, fontBold),
         ],
-      ),
+      ],
     );
+  }
+  
+  /// Genera análisis comparativo (versión simplificada inline)
+  static String _generateComparativeAnalysis(
+    Map<String, dynamic> currentReport,
+    Map<String, dynamic> previousReport,
+  ) {
+    final currentResult = (currentReport['result'] ?? '').toString().toLowerCase();
+    final previousResult = (previousReport['result'] ?? '').toString().toLowerCase();
+    final currentRisk = (currentReport['riskLevel'] ?? currentReport['risk_level'] ?? '').toString().toLowerCase();
+    final previousRisk = (previousReport['riskLevel'] ?? previousReport['risk_level'] ?? '').toString().toLowerCase();
+    
+    String analysis = '';
+    
+    // Comparación de resultados
+    if (currentResult == previousResult) {
+      analysis += 'El resultado se mantiene estable: ${currentReport['result']}\n';
+    } else {
+      analysis += 'Cambio detectado en el resultado:\n';
+      analysis += '• Previo: ${previousReport['result']}\n';
+      analysis += '• Actual: ${currentReport['result']}\n';
+      
+      if (_isWorse(currentResult, previousResult)) {
+        analysis += '⚠️ EVIDENCIA DE PROGRESIÓN. Se requiere evaluación médica inmediata.\n';
+      } else if (_isBetter(currentResult, previousResult)) {
+        analysis += '✅ EVIDENCIA DE MEJORÍA. Continuar con seguimiento.\n';
+      }
+    }
+    
+    // Comparación de riesgo
+    if (currentRisk != previousRisk) {
+      analysis += '\nCambio en el nivel de riesgo:\n';
+      analysis += '• Previo: ${previousReport['riskLevel'] ?? previousReport['risk_level']}\n';
+      analysis += '• Actual: ${currentReport['riskLevel'] ?? currentReport['risk_level']}\n';
+      
+      if (_isRiskHigher(currentRisk, previousRisk)) {
+        analysis += '⚠️ AUMENTO DEL RIESGO DETECTADO.\n';
+      } else {
+        analysis += '✅ REDUCCIÓN DEL RIESGO.\n';
+      }
+    }
+    
+    return analysis;
+  }
+  
+  static bool _isWorse(String current, String previous) {
+    final worseKeywords = ['cáncer', 'tumor', 'maligno'];
+    final betterKeywords = ['normal', 'benigno'];
+    return worseKeywords.any((k) => current.contains(k)) && 
+           betterKeywords.any((k) => previous.contains(k));
+  }
+  
+  static bool _isBetter(String current, String previous) {
+    final betterKeywords = ['normal', 'benigno'];
+    final worseKeywords = ['cáncer', 'tumor', 'maligno'];
+    return betterKeywords.any((k) => current.contains(k)) && 
+           worseKeywords.any((k) => previous.contains(k));
+  }
+  
+  static bool _isRiskHigher(String current, String previous) {
+    final riskOrder = {'bajo': 1, 'medio': 2, 'alto': 3};
+    final currentLevel = riskOrder[current] ?? 2;
+    final previousLevel = riskOrder[previous] ?? 2;
+    return currentLevel > previousLevel;
   }
 
   /// Construye sección de observaciones
