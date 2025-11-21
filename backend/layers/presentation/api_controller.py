@@ -4,7 +4,6 @@ Versión optimizada y robusta del endpoint /predict (mejorada)
 """
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 import logging
 import json
 import base64
@@ -31,7 +30,6 @@ class APIController:
 
     def __init__(self):
         self.app = Flask(__name__)
-        CORS(self.app)
 
         # Configurar límite de tamaño de contenido (120 MB)
         self.app.config['MAX_CONTENT_LENGTH'] = 120 * 1024 * 1024  # 120 MB
@@ -47,6 +45,7 @@ class APIController:
 
         self._setup_routes()
         self._setup_error_handlers()
+        self._setup_cors_handler()
 
     # ---------------------- Helpers ----------------------------------------
     def _strip_data_uri(self, s: str) -> str:
@@ -1085,6 +1084,28 @@ class APIController:
             logging.error(f"Error inesperado: {err}")
             logging.error(traceback.format_exc())
             return jsonify({"success": False, "error": "Error interno del servidor"}), 500
+
+
+    def _setup_cors_handler(self):
+        """Configurar manejador global de CORS para todas las respuestas"""
+        
+        @self.app.before_request
+        def handle_preflight():
+            if request.method == 'OPTIONS':
+                response = self.app.make_default_options_response()
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Accept,Authorization'
+                response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+                response.headers['Access-Control-Max-Age'] = '3600'
+                return response
+        
+        @self.app.after_request
+        def after_request(response):
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Accept,Authorization'
+            response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+            response.headers['Access-Control-Max-Age'] = '3600'
+            return response
 
     # -------------------------------------------------------------------------
     # RUN SERVER

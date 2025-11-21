@@ -6,7 +6,7 @@ import '../model/api_response.dart';
 
 class AuthService {
   // URL del backend (ajusta según tu configuración)
-  static const String baseUrl = 'http://127.0.0.1:5000';
+  static const String baseUrl = 'https://taller-backend-663984572750.us-central1.run.app';
   
   // Clave para guardar el usuario actual en SharedPreferences
   static const String _currentUserKey = 'current_user';

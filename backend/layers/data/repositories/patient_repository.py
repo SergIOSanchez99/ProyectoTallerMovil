@@ -3,8 +3,8 @@ Patient Repository
 Repositorio para manejar operaciones de base de datos de pacientes
 """
 
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+from pymysql import Error
 from typing import Optional, Dict, List
 import os
 import logging
@@ -22,36 +22,36 @@ class PatientRepository:
     def _get_connection(self):
         """Obtiene o crea una conexión a la base de datos"""
         try:
-            if self.connection is None or not self.connection.is_connected():
-                self.connection = mysql.connector.connect(
-                    host=os.getenv('DB_HOST', '127.0.0.1'),
-                    port=os.getenv('DB_PORT', 3306),
-                    database=os.getenv('DB_NAME', 'taller_movil_db'),
-                    user=os.getenv('DB_USER', 'root'),
-                    password=os.getenv('DB_PASSWORD', 'overload'),
-                    autocommit=False
-                )
-                logger.info("✅ Conexión a MySQL establecida para pacientes")
+            if self.connection is None or not self.connection.open:
+                db_host = os.getenv('DB_HOST', '127.0.0.1')
+                db_config = {
+                    'user': os.getenv('DB_USER', 'root'),
+                    'password': os.getenv('DB_PASSWORD', 'overload'),
+                    'database': os.getenv('DB_NAME', 'taller_movil_db'),
+                    'autocommit': False,
+                    'cursorclass': pymysql.cursors.DictCursor
+                }
+
+                if db_host.startswith('/cloudsql/'):
+                    db_config['unix_socket'] = db_host
+                else:
+                    db_config['host'] = db_host
+                    db_config['port'] = int(os.getenv('DB_PORT', 3306))
+
+                self.connection = pymysql.connect(**db_config)
+                logger.info("✅ Conexión a MySQL establecida para pacientes (PyMySQL)")
         except Error as e:
             logger.error(f"❌ Error conectando a MySQL: {e}")
             self.connection = None
     
     def _ensure_connection(self):
         """Asegura que hay una conexión activa"""
-        if self.connection is None or not self.connection.is_connected():
+        if self.connection is None or not self.connection.open:
             self._get_connection()
     
     def create_patient(self, full_name: str, identification: str, age: Optional[int] = None) -> Optional[Dict]:
         """
         Crea un nuevo paciente en la base de datos
-        
-        Args:
-            full_name: Nombre completo del paciente
-            identification: Número de identificación (único)
-            age: Edad del paciente (opcional)
-            
-        Returns:
-            Diccionario con los datos del paciente creado o None si falla
         """
         self._ensure_connection()
         if not self.connection:
@@ -59,7 +59,7 @@ class PatientRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = """
                 INSERT INTO pacientes (full_name, identification, age)
                 VALUES (%s, %s, %s)
@@ -86,12 +86,6 @@ class PatientRepository:
     def get_patient_by_id(self, patient_id: int) -> Optional[Dict]:
         """
         Obtiene un paciente por su ID
-        
-        Args:
-            patient_id: ID del paciente
-            
-        Returns:
-            Diccionario con los datos del paciente o None si no existe
         """
         self._ensure_connection()
         if not self.connection:
@@ -99,7 +93,7 @@ class PatientRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = "SELECT * FROM pacientes WHERE id = %s AND is_active = TRUE"
             cursor.execute(query, (patient_id,))
             result = cursor.fetchone()
@@ -114,12 +108,6 @@ class PatientRepository:
     def get_patient_by_identification(self, identification: str) -> Optional[Dict]:
         """
         Obtiene un paciente por su identificación
-        
-        Args:
-            identification: Número de identificación
-            
-        Returns:
-            Diccionario con los datos del paciente o None si no existe
         """
         self._ensure_connection()
         if not self.connection:
@@ -127,7 +115,7 @@ class PatientRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = "SELECT * FROM pacientes WHERE identification = %s AND is_active = TRUE"
             cursor.execute(query, (identification,))
             result = cursor.fetchone()
@@ -142,13 +130,6 @@ class PatientRepository:
     def get_all_patients(self, active_only: bool = True, search: Optional[str] = None) -> List[Dict]:
         """
         Obtiene todos los pacientes
-        
-        Args:
-            active_only: Si es True, solo devuelve pacientes activos
-            search: Término de búsqueda para filtrar por nombre o identificación
-            
-        Returns:
-            Lista de diccionarios con los datos de los pacientes
         """
         self._ensure_connection()
         if not self.connection:
@@ -156,7 +137,7 @@ class PatientRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             
             if search:
                 search_term = f"%{search}%"
@@ -194,13 +175,6 @@ class PatientRepository:
     def update_patient(self, patient_id: int, **kwargs) -> Optional[Dict]:
         """
         Actualiza los datos de un paciente
-        
-        Args:
-            patient_id: ID del paciente
-            **kwargs: Campos a actualizar
-            
-        Returns:
-            Diccionario con los datos del paciente actualizado o None si falla
         """
         self._ensure_connection()
         if not self.connection:
@@ -220,7 +194,7 @@ class PatientRepository:
         
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             
             # Construir query dinámicamente
             set_clause = ", ".join([f"{field} = %s" for field in update_fields.keys()])
@@ -245,12 +219,6 @@ class PatientRepository:
     def delete_patient(self, patient_id: int) -> bool:
         """
         Elimina (desactiva) un paciente (soft delete)
-        
-        Args:
-            patient_id: ID del paciente
-            
-        Returns:
-            True si se eliminó correctamente, False en caso contrario
         """
         self._ensure_connection()
         if not self.connection:
@@ -278,13 +246,6 @@ class PatientRepository:
     def identification_exists(self, identification: str, exclude_id: Optional[int] = None) -> bool:
         """
         Verifica si una identificación ya está registrada
-        
-        Args:
-            identification: Identificación a verificar
-            exclude_id: ID del paciente a excluir de la verificación (útil para updates)
-            
-        Returns:
-            True si la identificación existe, False en caso contrario
         """
         patient = self.get_patient_by_identification(identification)
         if patient is None:
@@ -298,7 +259,6 @@ class PatientRepository:
     
     def close(self):
         """Cierra la conexión a la base de datos"""
-        if self.connection and self.connection.is_connected():
+        if self.connection and self.connection.open:
             self.connection.close()
             logger.info("✅ Conexión a MySQL cerrada (pacientes)")
-

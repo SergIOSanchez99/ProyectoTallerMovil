@@ -6,7 +6,7 @@ import '../model/api_response.dart';
 
 class AIService {
   // URL del backend (ajusta según tu configuración)
-  static const String baseUrl = 'http://127.0.0.1:5000';
+  static const String baseUrl = 'https://taller-backend-663984572750.us-central1.run.app';
   
   /// Convierte una imagen a base64 para enviar al backend
   Future<String?> _imageToBase64(XFile image) async {

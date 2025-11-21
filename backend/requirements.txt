@@ -1,6 +1,5 @@
 # Core Framework
 Flask==2.3.3
-Flask-CORS==4.0.0
 
 # Machine Learning
 tensorflow>=2.16.0
@@ -20,4 +19,7 @@ structlog>=23.0.0
 marshmallow>=3.20.0
 
 # Database
-mysql-connector-python>=8.0.0
+PyMySQL>=1.1.0
+
+# Production Server
+gunicorn>=20.1.0

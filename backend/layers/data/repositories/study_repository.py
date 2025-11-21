@@ -3,8 +3,8 @@ Study Repository
 Repositorio para manejar operaciones de base de datos de estudios/reportes
 """
 
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+from pymysql import Error
 from typing import Optional, Dict, List
 import os
 import logging
@@ -23,23 +23,31 @@ class StudyRepository:
     def _get_connection(self):
         """Obtiene o crea una conexión a la base de datos"""
         try:
-            if self.connection is None or not self.connection.is_connected():
-                self.connection = mysql.connector.connect(
-                    host=os.getenv('DB_HOST', '127.0.0.1'),
-                    port=os.getenv('DB_PORT', 3306),
-                    database=os.getenv('DB_NAME', 'taller_movil_db'),
-                    user=os.getenv('DB_USER', 'root'),
-                    password=os.getenv('DB_PASSWORD', 'overload'),
-                    autocommit=False
-                )
-                logger.info("✅ Conexión a MySQL establecida para estudios")
+            if self.connection is None or not self.connection.open:
+                db_host = os.getenv('DB_HOST', '127.0.0.1')
+                db_config = {
+                    'user': os.getenv('DB_USER', 'root'),
+                    'password': os.getenv('DB_PASSWORD', 'overload'),
+                    'database': os.getenv('DB_NAME', 'taller_movil_db'),
+                    'autocommit': False,
+                    'cursorclass': pymysql.cursors.DictCursor
+                }
+
+                if db_host.startswith('/cloudsql/'):
+                    db_config['unix_socket'] = db_host
+                else:
+                    db_config['host'] = db_host
+                    db_config['port'] = int(os.getenv('DB_PORT', 3306))
+
+                self.connection = pymysql.connect(**db_config)
+                logger.info("✅ Conexión a MySQL establecida para estudios (PyMySQL)")
         except Error as e:
             logger.error(f"❌ Error conectando a MySQL: {e}")
             self.connection = None
     
     def _ensure_connection(self):
         """Asegura que hay una conexión activa"""
-        if self.connection is None or not self.connection.is_connected():
+        if self.connection is None or not self.connection.open:
             self._get_connection()
     
     def create_study(
@@ -57,21 +65,6 @@ class StudyRepository:
     ) -> Optional[Dict]:
         """
         Crea un nuevo estudio en la base de datos
-        
-        Args:
-            result: Resultado del análisis
-            stage: Etapa del análisis (opcional)
-            confidence: Nivel de confianza (opcional)
-            risk_level: Nivel de riesgo (opcional)
-            patient_id: ID del paciente (opcional)
-            user_id: ID del usuario (opcional)
-            image_path: Ruta de la imagen (opcional)
-            study_date: Fecha del estudio (opcional)
-            doctor_name: Nombre del médico (opcional)
-            observations: Observaciones (opcional)
-            
-        Returns:
-            Diccionario con los datos del estudio creado o None si falla
         """
         self._ensure_connection()
         if not self.connection:
@@ -79,7 +72,7 @@ class StudyRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = """
                 INSERT INTO estudios (
                     result, stage, confidence, risk_level, patient_id, user_id,
@@ -120,12 +113,6 @@ class StudyRepository:
     def get_study_by_id(self, study_id: int) -> Optional[Dict]:
         """
         Obtiene un estudio por su ID
-        
-        Args:
-            study_id: ID del estudio
-            
-        Returns:
-            Diccionario con los datos del estudio o None si no existe
         """
         self._ensure_connection()
         if not self.connection:
@@ -133,7 +120,7 @@ class StudyRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = """
                 SELECT 
                     e.*,
@@ -162,15 +149,6 @@ class StudyRepository:
     ) -> List[Dict]:
         """
         Obtiene todos los estudios activos
-        
-        Args:
-            user_id: Filtrar por usuario (opcional)
-            patient_id: Filtrar por paciente (opcional)
-            limit: Límite de resultados (opcional)
-            offset: Offset para paginación (opcional)
-            
-        Returns:
-            Lista de diccionarios con los datos de los estudios
         """
         self._ensure_connection()
         if not self.connection:
@@ -178,7 +156,7 @@ class StudyRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = """
                 SELECT 
                     e.*,
@@ -228,17 +206,6 @@ class StudyRepository:
     ) -> Optional[Dict]:
         """
         Actualiza un estudio existente
-        
-        Args:
-            study_id: ID del estudio a actualizar
-            result: Nuevo resultado (opcional)
-            stage: Nueva etapa (opcional)
-            confidence: Nueva confianza (opcional)
-            risk_level: Nuevo nivel de riesgo (opcional)
-            observations: Nuevas observaciones (opcional)
-            
-        Returns:
-            Diccionario con los datos del estudio actualizado o None si falla
         """
         self._ensure_connection()
         if not self.connection:
@@ -288,12 +255,6 @@ class StudyRepository:
     def delete_study(self, study_id: int) -> bool:
         """
         Elimina (desactiva) un estudio
-        
-        Args:
-            study_id: ID del estudio a eliminar
-            
-        Returns:
-            True si se eliminó correctamente, False en caso contrario
         """
         self._ensure_connection()
         if not self.connection:
@@ -314,4 +275,3 @@ class StudyRepository:
         finally:
             if cursor:
                 cursor.close()
-

@@ -3,8 +3,8 @@ User Repository
 Repositorio para manejar operaciones de base de datos de usuarios
 """
 
-import mysql.connector
-from mysql.connector import Error
+import pymysql
+from pymysql import Error
 from typing import Optional, Dict, List
 import os
 import logging
@@ -22,38 +22,37 @@ class UserRepository:
     def _get_connection(self):
         """Obtiene o crea una conexión a la base de datos"""
         try:
-            if self.connection is None or not self.connection.is_connected():
-                self.connection = mysql.connector.connect(
-                    host=os.getenv('DB_HOST', '127.0.0.1'),
-                    port=os.getenv('DB_PORT', 3306),
-                    database=os.getenv('DB_NAME', 'taller_movil_db'),
-                    user=os.getenv('DB_USER', 'root'),
-                    password=os.getenv('DB_PASSWORD', 'overload'),
-                    autocommit=False
-                )
-                logger.info("✅ Conexión a MySQL establecida")
+            if self.connection is None or not self.connection.open:
+                db_host = os.getenv('DB_HOST', '127.0.0.1')
+                db_config = {
+                    'user': os.getenv('DB_USER', 'root'),
+                    'password': os.getenv('DB_PASSWORD', 'overload'),
+                    'database': os.getenv('DB_NAME', 'taller_movil_db'),
+                    'autocommit': False,
+                    'cursorclass': pymysql.cursors.DictCursor
+                }
+
+                if db_host.startswith('/cloudsql/'):
+                    db_config['unix_socket'] = db_host
+                else:
+                    db_config['host'] = db_host
+                    db_config['port'] = int(os.getenv('DB_PORT', 3306))
+
+                self.connection = pymysql.connect(**db_config)
+                logger.info("✅ Conexión a MySQL establecida (PyMySQL)")
         except Error as e:
             logger.error(f"❌ Error conectando a MySQL: {e}")
             self.connection = None
     
     def _ensure_connection(self):
         """Asegura que hay una conexión activa"""
-        if self.connection is None or not self.connection.is_connected():
+        if self.connection is None or not self.connection.open:
             self._get_connection()
     
     def create_user(self, email: str, password: str, name: str, 
                    profile_image: Optional[str] = None) -> Optional[Dict]:
         """
         Crea un nuevo usuario en la base de datos
-        
-        Args:
-            email: Email del usuario
-            password: Contraseña
-            name: Nombre completo
-            profile_image: URL de imagen de perfil (opcional)
-            
-        Returns:
-            Diccionario con los datos del usuario creado o None si falla
         """
         self._ensure_connection()
         if not self.connection:
@@ -61,7 +60,7 @@ class UserRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = """
                 INSERT INTO usuarios (email, password, name, profile_image)
                 VALUES (%s, %s, %s, %s)
@@ -87,12 +86,6 @@ class UserRepository:
     def get_user_by_email(self, email: str) -> Optional[Dict]:
         """
         Obtiene un usuario por su email
-        
-        Args:
-            email: Email del usuario
-            
-        Returns:
-            Diccionario con los datos del usuario o None si no existe
         """
         self._ensure_connection()
         if not self.connection:
@@ -100,7 +93,7 @@ class UserRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = "SELECT * FROM usuarios WHERE email = %s"
             cursor.execute(query, (email.lower(),))
             result = cursor.fetchone()
@@ -115,12 +108,6 @@ class UserRepository:
     def get_user_by_id(self, user_id: int) -> Optional[Dict]:
         """
         Obtiene un usuario por su ID
-        
-        Args:
-            user_id: ID del usuario
-            
-        Returns:
-            Diccionario con los datos del usuario o None si no existe
         """
         self._ensure_connection()
         if not self.connection:
@@ -128,7 +115,7 @@ class UserRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             query = "SELECT * FROM usuarios WHERE id = %s"
             cursor.execute(query, (user_id,))
             result = cursor.fetchone()
@@ -143,13 +130,6 @@ class UserRepository:
     def verify_password(self, email: str, password: str) -> bool:
         """
         Verifica si la contraseña es correcta para un usuario
-        
-        Args:
-            email: Email del usuario
-            password: Contraseña a verificar
-            
-        Returns:
-            True si la contraseña es correcta, False en caso contrario
         """
         try:
             user = self.get_user_by_email(email)
@@ -177,12 +157,6 @@ class UserRepository:
     def email_exists(self, email: str) -> bool:
         """
         Verifica si un email ya está registrado
-        
-        Args:
-            email: Email a verificar
-            
-        Returns:
-            True si el email existe, False en caso contrario
         """
         user = self.get_user_by_email(email)
         return user is not None
@@ -190,12 +164,6 @@ class UserRepository:
     def get_all_users(self, active_only: bool = False) -> List[Dict]:
         """
         Obtiene todos los usuarios
-        
-        Args:
-            active_only: Si es True, solo devuelve usuarios activos
-            
-        Returns:
-            Lista de diccionarios con los datos de los usuarios
         """
         self._ensure_connection()
         if not self.connection:
@@ -203,7 +171,7 @@ class UserRepository:
             
         cursor = None
         try:
-            cursor = self.connection.cursor(dictionary=True)
+            cursor = self.connection.cursor()
             if active_only:
                 query = "SELECT * FROM usuarios WHERE is_active = TRUE ORDER BY created_at DESC"
             else:
@@ -221,7 +189,6 @@ class UserRepository:
     
     def close(self):
         """Cierra la conexión a la base de datos"""
-        if self.connection and self.connection.is_connected():
+        if self.connection and self.connection.open:
             self.connection.close()
             logger.info("✅ Conexión a MySQL cerrada")
-

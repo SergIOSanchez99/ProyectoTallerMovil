@@ -4,7 +4,7 @@ import '../model/api_response.dart';
 
 class StudyService {
   // URL del backend (ajusta según tu configuración)
-  static const String baseUrl = 'http://127.0.0.1:5000';
+  static const String baseUrl = 'https://taller-backend-663984572750.us-central1.run.app';
   
   /// Crea un nuevo estudio/reporte
   Future<ApiResponse<Map<String, dynamic>>> createStudy({

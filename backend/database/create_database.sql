@@ -59,3 +59,46 @@ SELECT COUNT(*) AS total_usuarios FROM usuarios;
 -- Buscar usuario por email
 -- SELECT * FROM usuarios WHERE email = 'wilfredo_guia@gmail.com';
 
+-- =====================================================
+-- Tabla de Pacientes
+-- =====================================================
+CREATE TABLE IF NOT EXISTS pacientes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    identification VARCHAR(50) NOT NULL UNIQUE,
+    age INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    
+    -- Índices para optimizar búsquedas
+    INDEX idx_identification (identification),
+    INDEX idx_full_name (full_name),
+    INDEX idx_is_active (is_active),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- Verificar la creación de la tabla de pacientes
+-- =====================================================
+SELECT 'Tabla de pacientes creada exitosamente' AS mensaje;
+SELECT COUNT(*) AS total_pacientes FROM pacientes;
+
+-- =====================================================
+-- Consultas útiles para pacientes
+-- =====================================================
+-- Ver todos los pacientes
+-- SELECT * FROM pacientes WHERE is_active = TRUE;
+
+-- Buscar paciente por identificación
+-- SELECT * FROM pacientes WHERE identification = '1234567890';
+
+-- Buscar paciente por nombre
+-- SELECT * FROM pacientes WHERE full_name LIKE '%nombre%' AND is_active = TRUE;
+
+-- =====================================================
+-- Comando para borrar la tabla pacientes (si es necesario)
+-- =====================================================
+-- Ejecuta este comando si necesitas eliminar la tabla:
+-- DROP TABLE IF EXISTS pacientes;
+
