@@ -27,6 +27,7 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
@@ -78,3 +79,34 @@ android/local.properties
 # Windows CMake configuration files
 windows/cmake_config.txt
 windows/cmake_generator.txt
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+
+# Environment variables and secrets
+.env
+.env.local
+*.key
+*.pem
+
+# Google Cloud credentials
+service-account-key.json
+*-service-account.json
+
+# Database dumps (may contain sensitive data)
+*.sql
+*.dump
+
+# IDE metadata
+.metadata
+
+# Web build artifacts (will be regenerated)
+/build/web/
+
+# Temporary scripts and resolved files
+*.resolved
+backend/check_url.ps1
+backend/create_db.ps1
