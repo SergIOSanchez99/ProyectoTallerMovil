@@ -110,3 +110,28 @@ service-account-key.json
 *.resolved
 backend/check_url.ps1
 backend/create_db.ps1
+
+# Mascaras folder - Large ML files
+# Ignore large datasets (images, labels, masks)
+backend/mascaras/**/dataset/images/
+backend/mascaras/**/dataset/labels/
+backend/mascaras/**/dataset/masks/
+backend/mascaras/**/*.cache
+
+# Ignore trained models (large .pt and .pth files)
+backend/mascaras/**/*.pt
+backend/mascaras/**/*.pth
+
+# Ignore training runs/results (can be regenerated)
+backend/mascaras/**/runs/
+backend/mascaras/**/scripts/runs/
+
+# Keep: scripts, configs, requirements, Dockerfiles
+# These will be tracked:
+# - *.py files
+# - *.ipynb files (notebooks)
+# - *.yaml, *.yml files
+# - requirements.txt
+# - Dockerfile
+# - compose.yml
+# - listofscripts.txt
