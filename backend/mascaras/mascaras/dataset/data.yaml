@@ -1,0 +1,6 @@
+
+train: /workspace/dataset/images/train
+val: /workspace/dataset/images/val
+
+nc: 2
+names: ['canceroso', 'benigno']

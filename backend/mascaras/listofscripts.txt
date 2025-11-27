@@ -1,0 +1,14 @@
+Para generar las mascaras:
+
+docker run -v $(pwd)/dataset:/app/dataset histo-masks python scripts/generate_masks.py
+
+
+Para convertir las mascaras:
+
+docker run -v $(pwd)/dataset:/app/dataset histo-masks python scripts/convert_masks.py
+
+Para entrenar YOLO:
+
+docker run -v $(pwd)/dataset:/app/dataset -v $(pwd)/runs:/app/runs histo-masks yolo train model=yolov8n-seg.pt data=dataset.yaml epochs=100 imgsz=640
+
+

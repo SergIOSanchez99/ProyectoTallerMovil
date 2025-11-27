@@ -1,0 +1,16 @@
+services:
+  yolov8-gpu:
+    build: .
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    shm_size: 4g
+    ports:
+      - "8000:8888"
+    volumes:
+      - ./:/workspace
+    environment:
+      - JUPYTER_TOKEN=desarrollo
