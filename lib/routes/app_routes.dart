@@ -6,6 +6,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String search = '/search';
   static const String uploadImage = '/upload-image';
+  static const String segmentation = '/segmentation';
   static const String profile = '/profile';
   static const String reportHistory = '/report-history';
   static const String generateReports = '/generate-reports';
@@ -28,6 +29,7 @@ class AppRoutes {
     home,
     search,
     uploadImage,
+    segmentation,
     profile,
     reportHistory,
     generateReports,

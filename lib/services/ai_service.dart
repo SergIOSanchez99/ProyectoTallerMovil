@@ -6,6 +6,7 @@ import '../model/api_response.dart';
 
 class AIService {
   // URL del backend (ajusta según tu configuración)
+  // Para desarrollo local: 'http://localhost:5000' o 'http://10.0.2.2:5000' (Android Emulator)
   static const String baseUrl = 'https://taller-backend-663984572750.us-central1.run.app';
   
   /// Convierte una imagen a base64 para enviar al backend

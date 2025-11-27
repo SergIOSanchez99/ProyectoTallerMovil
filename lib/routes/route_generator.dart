@@ -8,6 +8,7 @@ import '../pages/upload_image_page.dart';
 import '../pages/profile_page.dart';
 import '../pages/report_history_page.dart';
 import '../pages/generate_reports_page.dart';
+import '../pages/segmentation_page.dart';
 import '../pages/forgot_password_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/about_page.dart';
@@ -49,6 +50,12 @@ class RouteGenerator {
       case AppRoutes.uploadImage:
         return MaterialPageRoute(
           builder: (_) => const UploadImagePage(),
+          settings: settings,
+        );
+        
+      case AppRoutes.segmentation:
+        return MaterialPageRoute(
+          builder: (_) => const SegmentationPage(),
           settings: settings,
         );
         

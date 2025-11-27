@@ -167,19 +167,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _handlePerformSegmentation() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(AppStrings.performSegmentationComingSoon),
-        backgroundColor: AppColors.info,
-        action: SnackBarAction(
-          label: 'OK',
-          textColor: AppColors.white,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
-      ),
-    );
+    Navigator.pushNamed(context, AppRoutes.segmentation);
   }
 
   void _handleNavigation(int index) {
