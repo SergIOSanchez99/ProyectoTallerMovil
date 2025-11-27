@@ -5,8 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../model/api_response.dart';
 
 class SegmentationService {
-  // URL del backend (ajusta según tu configuración)
-  // Para desarrollo local: 'http://localhost:5000' o 'http://10.0.2.2:5000' (Android Emulator)
+  // URL del backend
   static const String baseUrl = 'https://taller-backend-663984572750.us-central1.run.app';
   
   /// Convierte una imagen a base64 para enviar al backend
