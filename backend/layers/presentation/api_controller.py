@@ -22,6 +22,7 @@ from ..business.services.health_service import HealthService
 from ..business.services.auth_service import AuthService
 from ..business.services.patient_service import PatientService
 from ..business.services.study_service import StudyService
+from ..business.services.segmentation_service import SegmentationService
 from ..infrastructure.exceptions.api_exceptions import APIException, ValidationError
 
 
@@ -39,6 +40,7 @@ class APIController:
         self.auth_service = AuthService()
         self.patient_service = PatientService()
         self.study_service = StudyService()
+        self.segmentation_service = SegmentationService()
 
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
@@ -1053,6 +1055,112 @@ class APIController:
             
             self.logger.info(f"✅ Respuesta generada (upload) con {len(response_data)} campos: {list(response_data.keys())}")
             return jsonify(response_data), 200
+
+        # ---------------------------------------------------------------------
+        # ENDPOINT /segment (Segmentación de imágenes)
+        # ---------------------------------------------------------------------
+        @self.app.route('/segment', methods=['POST', 'OPTIONS'])
+        def segment():
+            """Endpoint para segmentación de imágenes médicas"""
+
+            if request.method == 'OPTIONS':
+                response = jsonify({})
+                response.headers['Access-Control-Allow-Origin'] = '*'
+                response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                return response, 200
+
+            self.logger.info("=== POST /segment ===")
+
+            try:
+                # Leer body JSON
+                data = None
+                
+                # Método 1: Leer el body como texto
+                try:
+                    raw_data = request.get_data(as_text=True)
+                    if raw_data and raw_data.strip():
+                        data = json.loads(raw_data)
+                        self.logger.info("✅ JSON parseado desde body raw (segment)")
+                except (json.JSONDecodeError, ValueError) as e:
+                    self.logger.warning(f"Error parseando JSON desde body: {e}")
+                    # Intentar con bytes
+                    try:
+                        raw_bytes = request.get_data()
+                        if raw_bytes:
+                            data = json.loads(raw_bytes.decode('utf-8'))
+                            self.logger.info("✅ JSON parseado desde bytes (segment)")
+                    except Exception as e2:
+                        self.logger.warning(f"Error parseando desde bytes: {e2}")
+
+                # Método 2: Si no funcionó, intentar con get_json
+                if not data:
+                    try:
+                        data = request.get_json(force=True, silent=True)
+                        if data:
+                            self.logger.info("✅ JSON obtenido con get_json (segment)")
+                    except Exception as e:
+                        self.logger.warning(f"get_json falló: {e}")
+
+                if not data:
+                    return self._error_response("El cuerpo de la petición está vacío o no es JSON válido")
+
+                # Validar campo 'image'
+                image_b64 = data.get("image")
+                if image_b64 is None:
+                    return self._error_response("El campo 'image' es requerido.")
+
+                if not isinstance(image_b64, str) or len(image_b64.strip()) == 0:
+                    return self._error_response("El campo 'image' no puede estar vacío.")
+
+                # Obtener alpha (transparencia) opcional
+                alpha = float(data.get("alpha", 0.5))
+                if alpha < 0 or alpha > 1:
+                    alpha = 0.5
+
+                # Quitar prefijo data URI si existe
+                image_b64 = self._strip_data_uri(image_b64)
+                image_b64 = "".join(image_b64.split())
+
+                # Validar longitud máxima
+                max_b64_len = self._max_base64_length_chars()
+                if len(image_b64) > max_b64_len:
+                    return self._error_response(
+                        f"La imagen en base64 es demasiado grande ({len(image_b64)} chars). "
+                        f"Máximo permitido: {max_b64_len} chars."
+                    )
+
+                # Validar que sea base64 válido
+                try:
+                    test_decode = base64.b64decode(image_b64[:100] + "==", validate=True)
+                except Exception:
+                    return self._error_response("La imagen en Base64 es inválida.")
+
+                # Procesar segmentación
+                self.logger.info("Procesando segmentación...")
+                try:
+                    result = self.segmentation_service.segment_image(image_b64, alpha=alpha)
+                    self.logger.info("✅ Segmentación completada exitosamente")
+
+                    response_data = {
+                        "success": True,
+                        **result
+                    }
+
+                    self.logger.info(f"✅ Respuesta generada con {len(response_data)} campos")
+                    response = jsonify(response_data)
+                    response.headers['Access-Control-Allow-Origin'] = '*'
+                    response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+                    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+                    return response, 200
+
+                except Exception as e:
+                    self.logger.exception("Error en segmentación")
+                    return self._error_response(f"Error procesando la segmentación: {str(e)}", 500)
+
+            except Exception as e:
+                self.logger.exception("Error en endpoint /segment")
+                return self._error_response(f"Error en segmentación: {str(e)}", 500)
 
     # -------------------------------------------------------------------------
     # ERROR HANDLERS
