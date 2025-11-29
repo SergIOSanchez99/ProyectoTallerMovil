@@ -1,7 +1,7 @@
 class AppStrings {
   // Títulos de la aplicación
-  static const String appTitle = 'Segmentación y Clasificación de Cáncer de Colon';
-  static const String appSubtitle = 'de Cancer de Colon';
+  static const String appTitle = 'ColoScan';
+  static const String appSubtitle = 'Segmentación y Clasificación de Cáncer de Colon';
   
   // Pantalla de login
   static const String loginTitle = 'Iniciar sesión';

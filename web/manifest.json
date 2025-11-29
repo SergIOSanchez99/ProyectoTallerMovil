@@ -1,11 +1,11 @@
 {
-    "name": "taller_movil_proyecto",
-    "short_name": "taller_movil_proyecto",
+    "name": "ColoScan",
+    "short_name": "ColoScan",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Aplicación móvil para segmentación y clasificación de cáncer de colon",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
