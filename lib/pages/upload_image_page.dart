@@ -220,9 +220,7 @@ class _UploadImagePageState extends State<UploadImagePage> {
                           borderRadius: BorderRadius.circular(14),
                           child: Image.memory(
                             _selectedImageBytes!,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                           ),
                         )
                       : const Center(
