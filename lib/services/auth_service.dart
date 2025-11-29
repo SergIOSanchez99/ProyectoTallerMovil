@@ -13,69 +13,105 @@ class AuthService {
 
 
   /// Autentica un usuario con email y contraseña
+  /// Implementa retry automático para manejar cold starts del backend
   Future<ApiResponse<User>> login(String email, String password) async {
-    try {
-      // Validaciones básicas
-      if (email.isEmpty || password.isEmpty) {
-        return ApiResponse.error('Email y contraseña son requeridos');
-      }
-
-      if (!_isValidEmail(email)) {
-        return ApiResponse.error('Formato de email inválido');
-      }
-
-      // Hacer petición al backend
-      // Usar jsonEncode en lugar de json.encode para evitar problemas
-      final body = jsonEncode({
-        'email': email.trim(),
-        'password': password,
-      });
-      
-      final headers = <String, String>{
-        'Content-Type': 'application/json; charset=utf-8',
-        'Accept': 'application/json',
-      };
-      
-      final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
-        headers: headers,
-        body: body,
-      ).timeout(const Duration(seconds: 10));
-
-      // Verificar Content-Type en los headers
-      final contentType = response.headers['content-type'] ?? response.headers['Content-Type'] ?? '';
-      if (contentType.contains(',')) {
-        print('⚠️ Content-Type duplicado detectado en login: $contentType');
-      }
-      
-      final responseData = jsonDecode(response.body);
-
-      if (response.statusCode == 200 && responseData['success'] == true) {
-        // Guardar usuario en SharedPreferences
-        final userData = responseData['data'];
-        final user = User(
-          id: userData['id'].toString(),
-          email: userData['email'],
-          name: userData['name'],
-          profileImage: userData['profileImage'],
-        );
-        
-        // Guardar usuario actual
-        await _saveCurrentUser(user);
-        
-        return ApiResponse.success(user, message: responseData['message'] ?? 'Login exitoso');
-      } else {
-        // Usar el mensaje de error del backend, o un mensaje por defecto
-        final errorMsg = responseData['error'] ?? responseData['message'] ?? 'Las credenciales ingresadas no existen. Verifica tu email y contraseña.';
-        return ApiResponse.error(errorMsg);
-      }
-    } catch (e) {
-      print('❌ Error en login: $e');
-      if (e.toString().contains('TimeoutException') || e.toString().contains('SocketException')) {
-        return ApiResponse.error('Error de conexión. Verifica que el backend esté ejecutándose.');
-      }
-      return ApiResponse.error('Error al autenticar: $e');
+    // Validaciones básicas
+    if (email.isEmpty || password.isEmpty) {
+      return ApiResponse.error('Email y contraseña son requeridos');
     }
+
+    if (!_isValidEmail(email)) {
+      return ApiResponse.error('Formato de email inválido');
+    }
+
+    // Preparar datos de la petición
+    final body = jsonEncode({
+      'email': email.trim(),
+      'password': password,
+    });
+    
+    final headers = <String, String>{
+      'Content-Type': 'application/json; charset=utf-8',
+      'Accept': 'application/json',
+    };
+
+    // Intentar con retry (máximo 3 intentos)
+    const maxRetries = 3;
+    int attempt = 0;
+    
+    while (attempt < maxRetries) {
+      try {
+        attempt++;
+        
+        // Aumentar timeout progresivamente: 20s, 25s, 30s
+        final timeoutDuration = Duration(seconds: 20 + (attempt * 5));
+        
+        final response = await http.post(
+          Uri.parse('$baseUrl/auth/login'),
+          headers: headers,
+          body: body,
+        ).timeout(timeoutDuration);
+
+        // Verificar Content-Type en los headers
+        final contentType = response.headers['content-type'] ?? response.headers['Content-Type'] ?? '';
+        if (contentType.contains(',')) {
+          print('⚠️ Content-Type duplicado detectado en login: $contentType');
+        }
+        
+        final responseData = jsonDecode(response.body);
+
+        if (response.statusCode == 200 && responseData['success'] == true) {
+          // Guardar usuario en SharedPreferences
+          final userData = responseData['data'];
+          final user = User(
+            id: userData['id'].toString(),
+            email: userData['email'],
+            name: userData['name'],
+            profileImage: userData['profileImage'],
+          );
+          
+          // Guardar usuario actual
+          await _saveCurrentUser(user);
+          
+          return ApiResponse.success(user, message: responseData['message'] ?? 'Login exitoso');
+        } else {
+          // Usar el mensaje de error del backend, o un mensaje por defecto
+          final errorMsg = responseData['error'] ?? responseData['message'] ?? 'Las credenciales ingresadas no existen. Verifica tu email y contraseña.';
+          return ApiResponse.error(errorMsg);
+        }
+      } catch (e) {
+        final isTimeout = e.toString().contains('TimeoutException') || 
+                         e.toString().contains('Timeout') ||
+                         e.toString().contains('Future not completed');
+        final isSocketError = e.toString().contains('SocketException');
+        
+        print('❌ Error en login: $e');
+        
+        // Si es el último intento, retornar error
+        if (attempt >= maxRetries) {
+          if (isTimeout) {
+            return ApiResponse.error('El servidor está tardando demasiado en responder. Por favor, intenta nuevamente en unos momentos.');
+          } else if (isSocketError) {
+            return ApiResponse.error('Error de conexión. Verifica tu conexión a internet.');
+          }
+          return ApiResponse.error('Error al autenticar: $e');
+        }
+        
+        // Si es timeout o error de conexión, esperar antes de reintentar
+        if (isTimeout || isSocketError) {
+          // Backoff exponencial: 1s, 2s, 4s
+          final waitTime = Duration(milliseconds: 1000 * (1 << (attempt - 1)));
+          await Future.delayed(waitTime);
+          continue; // Reintentar
+        } else {
+          // Si no es timeout ni error de conexión, no reintentar
+          return ApiResponse.error('Error al autenticar: $e');
+        }
+      }
+    }
+    
+    // No debería llegar aquí, pero por si acaso
+    return ApiResponse.error('Error al autenticar después de $maxRetries intentos');
   }
 
   /// Valida el formato del email
