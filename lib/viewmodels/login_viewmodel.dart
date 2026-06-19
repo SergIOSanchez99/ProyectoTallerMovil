@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../model/user.dart';
-import '../model/api_response.dart';
 import '../services/auth_service.dart';
 
 class LoginViewModel extends ChangeNotifier {
@@ -110,8 +109,4 @@ class LoginViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

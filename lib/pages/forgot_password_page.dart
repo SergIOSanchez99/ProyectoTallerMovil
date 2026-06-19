@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_button.dart';
@@ -43,7 +42,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             children: [
               const SizedBox(height: AppDimensions.spacingXXL),
               // Icono
-              Icon(
+              const Icon(
                 Icons.lock_reset,
                 size: 80,
                 color: AppColors.primaryBlue,

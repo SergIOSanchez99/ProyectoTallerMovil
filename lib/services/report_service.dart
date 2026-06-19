@@ -101,6 +101,9 @@ class ReportService {
     required String stage,
     required double confidence,
     required String riskLevel,
+    String? imageBase64,
+    String? patientName,
+    String? patientId,
   }) async {
     print('🔄 Iniciando agregado de reporte...');
     print('📊 Reportes antes de agregar: ${_reports.length}');
@@ -115,6 +118,9 @@ class ReportService {
       'confidence': confidence,
       'riskLevel': riskLevel,
       'createdAt': DateTime.now().toIso8601String(),
+      if (imageBase64 != null) 'imageBase64': imageBase64,
+      if (patientName != null) 'patientName': patientName,
+      if (patientId != null) 'patientId': patientId,
     };
 
     _reports.insert(0, newReport); // Agregar al inicio de la lista

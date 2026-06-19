@@ -9,6 +9,7 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String reportHistory = '/report-history';
   static const String generateReports = '/generate-reports';
+  static const String segmentation = '/segmentation';
   
   // Rutas de autenticación
   static const String register = '/register';
@@ -31,6 +32,7 @@ class AppRoutes {
     profile,
     reportHistory,
     generateReports,
+    segmentation,
     forgotPassword,
     resetPassword,
     settings,
