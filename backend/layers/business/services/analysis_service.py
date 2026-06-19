@@ -126,4 +126,87 @@ class AnalysisService:
         else:
             return "Mantenga revisiones regulares según indicación médica"
 
+    def segment_image(self, image_data: str, alpha: float = 0.5) -> Dict[str, Any]:
+        """
+        Segmenta una imagen para detectar áreas sanas, cancerosas y fondo
+        
+        Args:
+            image_data: Imagen en formato base64
+            alpha: Opacidad del overlay
+            
+        Returns:
+            Dict con imagen segmentada en base64 y estadísticas
+        """
+        import base64
+        from io import BytesIO
+        from PIL import Image
+        import numpy as np
+
+        try:
+            # 1. Decodificar base64
+            if ',' in image_data:
+                image_data = image_data.split(',')[-1]
+            img_bytes = base64.b64decode(image_data)
+            original_img = Image.open(BytesIO(img_bytes))
+
+            # Asegurarse de que esté en modo RGB
+            if original_img.mode != 'RGB':
+                original_img = original_img.convert('RGB')
+
+            # Convertir a numpy array para manipulación rápida
+            img_np = np.array(original_img)
+            height, width, _ = img_np.shape
+
+            # Calcular luminosidad para cada píxel (Luma)
+            luma = 0.299 * img_np[:, :, 0] + 0.587 * img_np[:, :, 1] + 0.114 * img_np[:, :, 2]
+
+            # Crear máscaras según la luminosidad
+            bg_mask = luma < 40
+            cancer_mask = luma > 160
+            healthy_mask = (luma >= 40) & (luma <= 160)
+
+            # Inicializar imagen de salida con las mismas dimensiones
+            segmented_np = np.copy(img_np)
+
+            # Aplicar overlay
+            # Background -> oscurecer
+            segmented_np[bg_mask] = (img_np[bg_mask] * (1 - alpha)).astype(np.uint8)
+
+            # Tejido canceroso -> blend con rojo (220, 30, 30)
+            red_target = np.array([220, 30, 30], dtype=np.float32)
+            segmented_np[cancer_mask] = ((img_np[cancer_mask] * (1 - alpha)) + (red_target * alpha)).astype(np.uint8)
+
+            # Tejido sano -> blend con verde (30, 200, 30)
+            green_target = np.array([30, 200, 30], dtype=np.float32)
+            segmented_np[healthy_mask] = ((img_np[healthy_mask] * (1 - alpha)) + (green_target * alpha)).astype(np.uint8)
+
+            # Convertir de nuevo a PIL Image
+            segmented_img = Image.fromarray(segmented_np)
+
+            # Guardar como PNG en BytesIO
+            output_buffer = BytesIO()
+            segmented_img.save(output_buffer, format="PNG")
+            segmented_base64 = base64.b64encode(output_buffer.getvalue()).decode('utf-8')
+
+            # Calcular estadísticas
+            total_pixels = height * width
+            bg_count = int(np.sum(bg_mask))
+            cancer_count = int(np.sum(cancer_mask))
+            healthy_count = int(np.sum(healthy_mask))
+
+            stats = {
+                "healthy_percentage": (healthy_count / total_pixels) * 100,
+                "cancerous_percentage": (cancer_count / total_pixels) * 100,
+                "background_percentage": (bg_count / total_pixels) * 100
+            }
+
+            return {
+                "segmented_image": segmented_base64,
+                "statistics": stats
+            }
+
+        except Exception as e:
+            self.logger.error(f"Error realizando segmentación en backend: {e}")
+            raise
+
 

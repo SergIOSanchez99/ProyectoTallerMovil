@@ -1,6 +1,6 @@
 {
-    "name": "taller_movil_proyecto",
-    "short_name": "taller_movil_proyecto",
+    "name": "ColonSense",
+    "short_name": "ColonSense",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

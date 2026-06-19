@@ -90,6 +90,54 @@ class APIController:
                     "success": False,
                     "error": "Error interno del servidor"
                 }), 500
+
+        @self.app.route('/segment', methods=['POST'])
+        def segment():
+            """Endpoint para segmentación de imágenes"""
+            try:
+                # Validar entrada
+                if not request.is_json:
+                    raise ValidationError("Content-Type debe ser application/json")
+                
+                data = request.get_json()
+                if 'image' not in data:
+                    raise ValidationError("Campo 'image' es requerido")
+                
+                alpha = data.get('alpha', 0.5)
+                try:
+                    alpha = float(alpha)
+                except (ValueError, TypeError):
+                    alpha = 0.5
+                
+                # Procesar segmentación
+                result = self.analysis_service.segment_image(data['image'], alpha)
+                
+                return jsonify({
+                    "success": True,
+                    "timestamp": datetime.now().isoformat(),
+                    **result
+                }), 200
+                
+            except ValidationError as e:
+                self.logger.warning(f"Error de validación: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), 400
+                
+            except APIException as e:
+                self.logger.error(f"Error de API: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e)
+                }), e.status_code
+                
+            except Exception as e:
+                self.logger.error(f"Error interno: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": "Error interno del servidor"
+                }), 500
     
     def _setup_error_handlers(self):
         """Configurar manejadores de errores"""
