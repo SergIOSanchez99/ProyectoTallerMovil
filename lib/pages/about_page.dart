@@ -23,7 +23,7 @@ class AboutPage extends StatelessWidget {
           child: Column(
             children: [
               // Información de la aplicación
-              CustomCard(
+              const CustomCard(
                 child: Column(
                   children: [
                     Icon(
@@ -31,8 +31,8 @@ class AboutPage extends StatelessWidget {
                       size: 80,
                       color: AppColors.primaryBlue,
                     ),
-                    const SizedBox(height: AppDimensions.spacingL),
-                    const Text(
+                    SizedBox(height: AppDimensions.spacingL),
+                    Text(
                       AppStrings.appTitle,
                       style: TextStyle(
                         fontSize: AppDimensions.fontSizeXXL,
@@ -41,8 +41,8 @@ class AboutPage extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: AppDimensions.spacingM),
-                    const Text(
+                    SizedBox(height: AppDimensions.spacingM),
+                    Text(
                       'Versión 1.0.0',
                       style: TextStyle(
                         fontSize: AppDimensions.fontSizeL,
@@ -54,11 +54,11 @@ class AboutPage extends StatelessWidget {
               ),
               const SizedBox(height: AppDimensions.spacingL),
               // Descripción
-              CustomCard(
+              const CustomCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Descripción',
                       style: TextStyle(
                         fontSize: AppDimensions.fontSizeXXL,
@@ -66,8 +66,8 @@ class AboutPage extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: AppDimensions.spacingL),
-                    const Text(
+                    SizedBox(height: AppDimensions.spacingL),
+                    Text(
                       'Esta aplicación está diseñada para ayudar en la segmentación y clasificación de imágenes de cáncer de colon utilizando técnicas de inteligencia artificial y machine learning.',
                       style: TextStyle(
                         fontSize: AppDimensions.fontSizeL,

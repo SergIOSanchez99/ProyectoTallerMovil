@@ -8,7 +8,6 @@ import '../widgets/custom_card.dart';
 import '../utils/validators.dart';
 import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
-import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -115,6 +114,34 @@ class _LoginPageState extends State<LoginPage> {
                           textAlign: TextAlign.center,
                         ),
                       ),
+                      const SizedBox(height: AppDimensions.spacingM),
+                      // Enlace de registro
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            '¿No tienes cuenta? ',
+                            style: TextStyle(
+                              fontSize: AppDimensions.fontSizeM,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(context, AppRoutes.register);
+                            },
+                            child: const Text(
+                              'Regístrate',
+                              style: TextStyle(
+                                fontSize: AppDimensions.fontSizeM,
+                                color: AppColors.secondaryBlue,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -142,8 +169,8 @@ class _LoginPageState extends State<LoginPage> {
       _isLoading = false;
     });
 
-    // Navegar a la pantalla principal
-    context.pushReplacementNamed(AppRoutes.home);
+    // Navegar a la pantalla principal (Home)
+    Navigator.pushReplacementNamed(context, AppRoutes.home);
   }
 
   void _handleForgotPassword() {

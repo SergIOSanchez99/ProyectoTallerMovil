@@ -1,0 +1,20 @@
+# Core Framework
+Flask==2.3.3
+Flask-CORS==4.0.0
+
+# Machine Learning
+tensorflow>=2.16.0
+numpy>=1.24.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# Development & Testing
+pytest>=7.0.0
+pytest-flask>=1.2.0
+
+# Logging & Monitoring
+structlog>=23.0.0
+
+# Data Validation
+marshmallow>=3.20.0

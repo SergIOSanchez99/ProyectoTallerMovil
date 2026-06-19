@@ -1,0 +1,5 @@
+# Configuración de CMake para Flutter Windows
+# Usar Ninja como generador en lugar de Visual Studio
+set(CMAKE_GENERATOR "Ninja" CACHE STRING "CMake generator")
+set(CMAKE_GENERATOR_PLATFORM "x64" CACHE STRING "CMake generator platform")
+

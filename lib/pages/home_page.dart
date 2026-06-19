@@ -3,8 +3,8 @@ import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
-import '../utils/extensions.dart';
 import '../routes/app_routes.dart';
+import '../services/auth_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,10 +20,38 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.veryLightBlue,
+      appBar: AppBar(
+        title: const Text('Inicio'),
+        backgroundColor: AppColors.primaryBlue,
+        foregroundColor: AppColors.white,
+        elevation: 0,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              if (value == 'logout') {
+                await _handleLogout();
+              }
+            },
+            itemBuilder: (BuildContext context) => [
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: AppDimensions.spacingXXL),
+            const SizedBox(height: AppDimensions.spacingL),
             // Área de contenido principal
             Expanded(
               child: Padding(
@@ -55,19 +83,24 @@ class _HomePageState extends State<HomePage> {
                             ],
                           ),
                           const SizedBox(height: AppDimensions.spacingL),
-                          // Fila inferior: Generar reportes (centrado)
+                          // Fila inferior: Generar reportes y Realizar Segmentación
                           Row(
                             children: [
-                              const Spacer(),
-                              SizedBox(
-                                width: context.screenWidth * 0.35,
+                              Expanded(
                                 child: ActionCard(
-                                  icon: Icons.attach_file,
+                                  icon: Icons.description,
                                   title: AppStrings.generateReports,
                                   onTap: _handleGenerateReports,
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: AppDimensions.spacingM),
+                              Expanded(
+                                child: ActionCard(
+                                  icon: Icons.biotech,
+                                  title: AppStrings.performSegmentation,
+                                  onTap: _handlePerformSegmentation,
+                                ),
+                              ),
                             ],
                           ),
                         ],
@@ -79,17 +112,38 @@ class _HomePageState extends State<HomePage> {
             ),
             // Barra de navegación inferior
             Container(
-              padding: const EdgeInsets.symmetric(vertical: AppDimensions.spacingS),
               decoration: const BoxDecoration(
-                color: AppColors.lightBlue,
+                color: Color(0xFFB0E0E6), // Azul claro
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(Icons.home, AppStrings.homeNav, 0),
-                  _buildNavItem(Icons.attach_file, AppStrings.attachNav, 1),
-                  _buildNavItem(Icons.history, AppStrings.historyNav, 2),
-                  _buildNavItem(Icons.person, AppStrings.profileNav, 3),
+              child: BottomNavigationBar(
+                currentIndex: 0, // Índice para "Inicio"
+                onTap: _handleNavigation,
+                type: BottomNavigationBarType.fixed,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                selectedItemColor: const Color(0xFF1E6091), // Azul oscuro
+                unselectedItemColor: Colors.grey,
+                items: const <BottomNavigationBarItem>[
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Inicio',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.attach_file),
+                    label: 'Adjuntar',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.book),
+                    label: 'Historial',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Perfil',
+                  ),
                 ],
               ),
             ),
@@ -99,48 +153,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedIndex = index;
-        });
-        _handleNavigation(index);
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: AppDimensions.iconSizeM,
-            color: AppColors.primaryBlue,
-          ),
-          const SizedBox(height: AppDimensions.spacingXS),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: AppDimensions.fontSizeS,
-              color: AppColors.primaryBlue,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _handleAttachImage() {
-    context.pushNamed(AppRoutes.uploadImage);
+    Navigator.pushNamed(context, AppRoutes.uploadImage);
   }
 
   void _handleReportHistory() {
-    context.pushNamed(AppRoutes.reportHistory);
+    Navigator.pushNamed(context, AppRoutes.reportHistory);
   }
 
   void _handleGenerateReports() {
-    context.pushNamed(AppRoutes.generateReports);
+    Navigator.pushNamed(context, AppRoutes.generateReports);
+  }
+
+  void _handlePerformSegmentation() {
+    Navigator.pushNamed(context, AppRoutes.segmentation);
   }
 
   void _handleNavigation(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+    
     switch (index) {
       case 0:
         // Ya estamos en inicio
@@ -152,8 +186,55 @@ class _HomePageState extends State<HomePage> {
         _handleReportHistory();
         break;
       case 3:
-        context.pushNamed(AppRoutes.profile);
+        Navigator.pushNamed(context, AppRoutes.profile);
         break;
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar sesión'),
+          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Cerrar sesión'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmLogout == true) {
+      // Cerrar sesión
+      final authService = AuthService();
+      final response = await authService.logout();
+      
+      // Navegar a la página de login
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.login,
+        (route) => false,
+      );
+      
+      // Mostrar mensaje de confirmación
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(response.message ?? 'Sesión cerrada exitosamente'),
+          backgroundColor: response.success ? AppColors.success : Colors.red,
+        ),
+      );
     }
   }
 }

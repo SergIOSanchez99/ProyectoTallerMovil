@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../model/person.dart';
-import '../model/api_response.dart';
 import '../services/person_service.dart';
 
 class SearchViewModel extends ChangeNotifier {
@@ -93,8 +92,4 @@ class SearchViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 }

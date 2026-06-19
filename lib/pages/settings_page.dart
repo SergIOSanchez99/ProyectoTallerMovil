@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
-import '../constants/app_strings.dart';
 import '../constants/app_dimensions.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_button.dart';
@@ -56,7 +55,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           _notificationsEnabled = value;
                         });
                       },
-                      activeColor: AppColors.primaryBlue,
+                      activeThumbColor: AppColors.primaryBlue,
                     ),
                   ],
                 ),
@@ -85,7 +84,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           _darkModeEnabled = value;
                         });
                       },
-                      activeColor: AppColors.primaryBlue,
+                      activeThumbColor: AppColors.primaryBlue,
                     ),
                   ],
                 ),
